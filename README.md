@@ -1,3 +1,8 @@
+1. pip install -r requirements.txt
+2. Read through the command in commands_BO_full.sh and BO_runs_LLM_joint_optimization.py
+3. To run the code, need to have access to our servers.
+
+# Deprecated; ignore.
 1. To get the data, first create a `data` folder in the home repo.
 2. Download the train zip file from `https://www.kaggle.com/c/dogs-vs-cats/data?select=train.zip`
 3. Download the fashion-mnist data from `https://github.com/zalandoresearch/fashion-mnist/tree/master/data/fashion`
