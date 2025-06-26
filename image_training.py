@@ -4,6 +4,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torchvision import models
 from torch.optim.lr_scheduler import StepLR
+import numpy as np
 
 class AdvancedCNN(nn.Module):
     def __init__(self, num_classes):
@@ -200,3 +201,12 @@ def train(train_loader, validation_loader, seed, num_epochs=10, cuda="cuda:0", p
     # Train the model
     all_acc, final_acc, model = train_model(model, train_loader, validation_loader, num_epochs, criterion, optimizer, device, printout=printout, seed=seed)
     return all_acc, final_acc, model
+
+def run_trials(train_loader, validation_loader, cuda, epochs, num_layer_to_unfreeze=2, trials=10, printout=True):
+    acc_obs = []
+    for x in range(trials):
+        all_acc,final_acc,_ = train(train_loader, validation_loader, seed=x, num_epochs=epochs, printout=printout, lr=5e-5, cuda=cuda, num_layer_to_unfreeze=num_layer_to_unfreeze)
+        acc_obs.append(max(all_acc))
+    print("avg acc across trials: ", np.mean(acc_obs))
+    print("avg std across trials: ", np.std(acc_obs))
+    return acc_obs

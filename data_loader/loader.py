@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from copy import deepcopy
+import random
 
 class CustomMNISTDataset(Dataset):
     def load_labels(self, label_file):
@@ -182,8 +183,7 @@ def take_highest_influence(original_data_loader : DataLoader, num_datapoints : i
     
     return top_influence_dataset
 
-def sample_from_influence(original_data_loader : DataLoader, num_datapoints : int, influences : List[float], seed) -> TensorDataset:
-    def smooth_distribution(probs, d, alpha=0.5):
+def smooth_distribution(probs, d, alpha=0.5):
         # Step 1: Sort indices of probs in descending order and select the top d
         sorted_indices = np.argsort(probs)[::-1]
         top_d_indices = sorted_indices[:d]
@@ -202,6 +202,10 @@ def sample_from_influence(original_data_loader : DataLoader, num_datapoints : in
         new_distribution = (1 - alpha) * top_d_distribution + alpha * fully_uniform
         
         return new_distribution
+
+
+
+def sample_from_influence(original_data_loader : DataLoader, num_datapoints : int, influences : List[float], seed) -> TensorDataset:
 
     torch.manual_seed(seed)
     original_dataset = original_data_loader.dataset
@@ -284,7 +288,9 @@ def remove_tail_ends_then_uniform(original_data_loader : DataLoader, num_datapoi
 # given a mixing ratio, sample from the data sources randomly to fulfill that amount
 def sample_from(loaders : List[DataLoader], mixing_ratio, method="random_sample", seed=None, additional_info=None, base_number_of_batches=10, batch_size=16, shuffle=True, contaminate=False) -> DataLoader:
     if seed is None:
-        torch.manual_seed()
+        seed = random.randint(0, 2**32 - 1)
+        # Set the seed in PyTorch
+        torch.manual_seed(seed)
     else:
         torch.manual_seed(seed)
     assert len(loaders) == len(mixing_ratio)
@@ -304,6 +310,7 @@ def sample_from(loaders : List[DataLoader], mixing_ratio, method="random_sample"
         if ratio == 0:
             continue
         if method == "random_sample":
+            seed = random.randint(0,10000)
             sampled_data.append(sample_from_dataloader(loader, num_batches=int(ratio*base_number_of_batches), contaminate=contaminate, seed=seed))
         if method == "highest_influence":
             sampled_data.append(take_highest_influence(loader, num_datapoints=int(ratio*base_number_of_batches)*batch_size, influences=additional_info[idx], seed=seed))

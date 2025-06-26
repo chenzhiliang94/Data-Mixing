@@ -58,15 +58,14 @@ bag_loader = mnist_train_loader_4
 boots_loader=mnist_train_loader_3
 shirt_loader=mnist_train_loader_5
 
-# to_contaminate=True
-# influence_path="influence/contaminated/"
-# smaller_shirt_loader = sample_from([shirt_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
-# smaller_cd_loader = sample_from([cat_dog_train_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
-# smaller_sandal_loader = sample_from([sandals_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
-# smaller_sneaker_loader = sample_from([sneakers_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
-# smaller_bag_loader = sample_from([bag_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
-# smaller_boot_loader = sample_from([boots_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
-
+to_contaminate=True
+influence_path="influence/contaminated/"
+smaller_shirt_loader = sample_from([shirt_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
+smaller_cd_loader = sample_from([cat_dog_train_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
+smaller_sandal_loader = sample_from([sandals_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
+smaller_sneaker_loader = sample_from([sneakers_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
+smaller_bag_loader = sample_from([bag_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
+smaller_boot_loader = sample_from([boots_loader], seed=seed, mixing_ratio=[1.0], method="random_sample", base_number_of_batches=50, batch_size=16, shuffle=True, contaminate=to_contaminate)
 
 # def run_trials(train_loader, validation_loader, cuda):
 #     acc_obs = []
@@ -184,8 +183,8 @@ for pair in pairwise_domains:
     domain_A = pair[0]
     domain_B = pair[1]
     
-    domain_A_influence = load_val_influence(influence_path, domain_A, "cg") # val influence is always on clean data, but training data could be contaminated (depending on command arg)
-    domain_B_influence = load_val_influence(influence_path, domain_B, "cg")
+    domain_A_influence = load_training_influence(influence_path, domain_A, "cg") # val influence is always on clean data, but training data could be contaminated (depending on command arg)
+    domain_B_influence = load_training_influence(influence_path, domain_B, "cg")
     
     domain_A_train_loader=domains[domain_A][0]
     domain_B_train_loader=domains[domain_B][0]
@@ -199,7 +198,7 @@ for pair in pairwise_domains:
         
         # random sampling 7:3, todo: replace with non training data
         additional_info = deepcopy([domain_A_influence, domain_B_influence])
-        random_sampling_training_loader = sample_from([domains[domain_A][0], domains[domain_B][0]], seed=seed, mixing_ratio=mixing_ratio, method=sample_method, additional_info=additional_info, base_number_of_batches=30, batch_size=16, shuffle=True, contaminate=False)
+        random_sampling_training_loader = sample_from([domains[domain_A][0], domains[domain_B][0]], seed=None, mixing_ratio=mixing_ratio, method=sample_method, additional_info=additional_info, base_number_of_batches=30, batch_size=16, shuffle=True, contaminate=False)
 
         # random
         print(sample_method)

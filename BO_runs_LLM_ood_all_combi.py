@@ -1,0 +1,170 @@
+
+from data_loader.loader import get_cat_dog, get_fashion_mnist, sample_from
+from influence import load_training_influence, load_val_influence
+from image_training import train
+from BO import iterative_loop, get_BO_plots, run_BO
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+import itertools
+from tabulate import tabulate
+from copy import deepcopy
+import csv
+from itertools import combinations
+import json
+from collections import defaultdict
+from BO import run_BO_for_LLM
+
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
+parser = ArgumentParser()
+parser.add_argument("--contaminate", help="to contaminate training data?", type=int, default=0)
+parser.add_argument("--iterations", help="iterations BO?", type=int, default=10)
+parser.add_argument("--num_data", help="total_data?", type=int, default=10000)
+parser.add_argument("--epochs", help="epochs", default=1)
+parser.add_argument("--trials", help="trials", default=1)
+parser.add_argument("--evaluation_cuda", help="evaluation_cuda", default=0)
+parser.add_argument("--sample_method", help="sample_method", default="random")
+parser.add_argument("--num_eval", help="sample_method",  type=int, default=2)
+
+# domains
+# parser.add_argument("--evaluation_task", help="evaluation_task")
+# parser.add_argument("--evaluation_weights", help="evaluation_weights")
+# parser.add_argument("--training_domain", help="training_domain")
+
+args = vars(parser.parse_args())
+print("command-line args: ", args)
+to_contaminate= bool(args["contaminate"])
+if not to_contaminate:
+    influence_path="influence/"
+    print("getting influence from: ", influence_path)
+else:
+    influence_path="influence/contaminated/"
+    print("getting influence from: ", influence_path)
+
+num_eval=int(args["num_eval"])
+epochs=int(args["epochs"])
+trials=int(args["trials"])
+cuda=int(args["evaluation_cuda"])
+cuda="cuda:"+str(cuda)
+BO_run = int(args["iterations"])
+total_data = int(args["num_data"])
+sample_methods = str(args["sample_method"]).split(",")
+
+seed = 0
+import random
+import string
+
+# Generate a random string of size 5 using uppercase and lowercase letters
+random_string = ''.join(random.choices(string.ascii_letters, k=5))
+print("random sentence created:", random_string)
+
+task_metrics = {
+  "commonsense_qa": "acc,none",
+  "gsm8k": "exact_match,strict-match",
+  "headqa_en": "acc,none",
+  "hellaswag": "acc,none",
+  "pubmedqa": "acc,none",
+  "sciq": "acc_norm,none",
+  "triviaqa": "exact_match,remove_whitespace",
+  "truthfulqa_gen": "bleu_acc,none",
+  "wikitext": "word_perplexity,none",
+}
+
+training_domain = ["gsm8k",
+  "headqa_en",
+  "hellaswag",
+  "pubmedqa",
+  "sciq",
+  "triviaqa",
+  "commonsense_qa", "truthfulqa_gen", "wikitext"]
+
+eval_domain = ["gsm8k",
+  "headqa_en",
+  "hellaswag",
+  "pubmedqa",
+  "sciq",
+  "triviaqa",
+  "commonsense_qa", "truthfulqa_gen", "wikitext"]
+
+
+import itertools
+evaluation_weights = num_eval * [1/num_eval]
+# Get all combinations of 2 items
+combinations = itertools.combinations(eval_domain, num_eval)
+# Convert to a list to see the results
+all_tasks_combi = list(combinations)
+
+for tasks in all_tasks_combi:
+    print("current eval task: ", tasks)
+    
+    # evaluation task not found in training
+    data_domains = list(set(training_domain) - set(tasks))
+    
+    '''
+    {'commonsense_qa': {'alias': 'commonsense_qa', 'acc,none': 0.7624897624897625, 'acc_stderr,none': 0.012183673723473462}, 'gsm8k': {'alias': 'gsm8k', 'exact_match,strict-match': 0.025018953752843062, 'exact_match_stderr,strict-match': 0.004302045046564279, 'exact_match,flexible-extract': 0.332827899924185, 'exact_match_stderr,flexible-extract': 0.012979892496598268}, 'headqa_en': {'alias': 'headqa_en', 'acc,none': 0.4310722100656455, 'acc_stderr,none': 0.00945908371802805, 'acc_norm,none': 0.4777534646243618, 'acc_norm_stderr,none': 0.009540808712468811}, 'headqa_es': {'alias': 'headqa_es', 'acc,none': 0.3636032093362509, 'acc_stderr,none': 0.00918804950673874, 'acc_norm,none': 0.40809628008752735, 'acc_norm_stderr,none': 0.009387551551893495}, 'hellaswag': {'alias': 'hellaswag', 'acc,none': 0.5769766978689504, 'acc_stderr,none': 0.004930293787545628, 'acc_norm,none': 0.758514240191197, 'acc_norm_stderr,none': 0.004271094187098002}, 'pubmedqa': {'alias': 'pubmedqa', 'acc,none': 0.746, 'acc_stderr,none': 0.019486596801643427}, 'sciq': {'alias': 'sciq', 'acc,none': 0.963, 'acc_stderr,none': 0.005972157622389641, 'acc_norm,none': 0.933, 'acc_norm_stderr,none': 0.007910345983177549}, 'triviaqa': {'alias': 'triviaqa', 'exact_match,remove_whitespace': 0.509808292465448, 'exact_match_stderr,remove_whitespace': 0.0037319764897777853}, 'truthfulqa_gen': {'alias': 'truthfulqa_gen', 'bleu_max,none': 20.059961039741832, 'bleu_max_stderr,none': 0.7225497258741972, 'bleu_acc,none': 0.46511627906976744, 'bleu_acc_stderr,none': 0.017460849975873962, 'bleu_diff,none': -0.5175936691929918, 'bleu_diff_stderr,none': 0.6303941458560193, 'rouge1_max,none': 43.30567524349279, 'rouge1_max_stderr,none': 0.8669771974211276, 'rouge1_acc,none': 0.4969400244798042, 'rouge1_acc_stderr,none': 0.017503173260960635, 'rouge1_diff,none': -0.4731320522373688, 'rouge1_diff_stderr,none': 0.8553571011524773, 'rouge2_max,none': 27.14173439603888, 'rouge2_max_stderr,none': 0.95047247986369, 'rouge2_acc,none': 0.3598531211750306, 'rouge2_acc_stderr,none': 0.01680186046667716, 'rouge2_diff,none': -1.9186008288656529, 'rouge2_diff_stderr,none': 0.9106913132355565, 'rougeL_max,none': 40.423027758258726, 'rougeL_max_stderr,none': 0.8648234890867836, 'rougeL_acc,none': 0.4810281517747858, 'rougeL_acc_stderr,none': 0.017490896405762364, 'rougeL_diff,none': -0.9313105921815803, 'rougeL_diff_stderr,none': 0.8623845067257}, 'wikitext': {'alias': 'wikitext', 'word_perplexity,none': 16.536551378163434, 'word_perplexity_stderr,none': 'N/A', 'byte_perplexity,none': 1.6898777792350577, 'byte_perplexity_stderr,none': 'N/A', 'bits_per_byte,none': 0.7569189070590712, 'bits_per_byte_stderr,none': 'N/A'}}
+    '''
+
+    evaluation_task = {}
+    for task, weight in zip(tasks, evaluation_weights):
+        evaluation_task[task] = (float(weight), task_metrics[task])
+
+    print("evaluation tasks and weights: ", evaluation_task)
+
+    train_epochs = 1
+    training_batch = 8
+    evaluation_batch = 16
+    evaluation_steps=100
+
+    final_info_stored = {"command line args": args,
+                        "hash string": random_string,
+                        "training domain": data_domains,
+                        "evaluation domain": tasks,
+                        "weight": evaluation_weights} # weight in str
+
+    for sample_method in sample_methods:
+        results = []
+        for x in range(trials):
+            try:
+                GP_input, observed_output, gp = run_BO_for_LLM(data_domains = data_domains,
+                                                            random_dir = random_string, 
+                                                                BO_run = BO_run,
+                                                                total_data = total_data, 
+                                                                evaluation_cuda = cuda, 
+                                                                evaluation_task = evaluation_task,
+                                                                sampling_method = "random", 
+                                                                train_epochs=train_epochs, 
+                                                                training_batch=training_batch, 
+                                                                evaluation_batch=evaluation_batch,
+                                                                eval_steps=evaluation_steps, 
+                                                                printout=True)
+            except Exception as e:
+                print("exception encountered at the following evaluation and training domain: ")
+                print("training: ", data_domains)
+                print("evaluation: ", tasks)
+                print("exception: ", e)
+                print("training batch: ", training_batch)
+                print("evaluation batch: ", evaluation_batch)
+
+            current_max = float('-inf')  # Start with negative infinity
+            max_until_now = []           # List to store max values at each step
+
+            # Iterate through the list
+            for num in observed_output:
+                current_max = max(current_max, num)  # Update the current maximum
+                max_until_now.append(current_max)    # Store the max up to this step
+
+            # Output the result
+            print("Best at every step:", max_until_now)
+            results.append(max_until_now)
+        final_info_stored[sample_method] = results
+    print("final results: ", final_info_stored)
+    # store results
+    with open("LLM/BO/total_OOD_2_eval_task/"+"_".join(tasks)+".json", 'w') as f:
+        json.dump(final_info_stored, f)
+    
+
+
+
+
+

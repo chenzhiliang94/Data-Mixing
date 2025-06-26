@@ -1,0 +1,2 @@
+# run BO only on data. See other commands.sh files for description
+CUDA_VISIBLE_DEVICES=2 python3 -u BO_runs_LLM_joint_optimization.py --contaminate=0 --iterations=100 --num_data=5000 --epochs=1 --trials=5 --evaluation_cuda=0 --sample_method=random --eval_tasks=gsm8k --experiments_setting=ood --output_dir=output_joint_optimization/results_updated --lora_rank=128 --time_limit=100 --ucb_beta=0.5 --limit=200 --run_BO_on=data >> printout_BO/BO_data_optimize.out
