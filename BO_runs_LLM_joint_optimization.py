@@ -121,6 +121,7 @@ for sample_method in sample_methods: # random sampling
     for x in range(trials):
         #model_id="Qwen/Qwen2.5-7B-Instruct" # pass this into next function if necessary
         #model_id: str = "LLM/llama_8b_instruct"
+        
         if run_BO_on == "all": # run BO on both data and model
             print("running BO on both data and model")
             GP_input, observed_output, gp = joint_opt_BO_LLM(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
@@ -137,7 +138,7 @@ for sample_method in sample_methods: # random sampling
                                                             ucb_beta=ucb_beta,
                                                             limit=limit,
                                                             printout=True)
-        elif run_BO_on == "all_fixed_features":
+        elif run_BO_on == "all_fixed_features": # run BO on both data and model, but with some discrete optimization tricks; somehow this doesn't work well.
             print("running BO on both data and model with fixed feature list")
             GP_input, observed_output, gp = joint_opt_BO_LLM_fixed_feature_list(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
                                                         random_dir = random_string, 
