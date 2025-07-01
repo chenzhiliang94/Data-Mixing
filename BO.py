@@ -148,7 +148,8 @@ def run_BO_for_LLM(data_domains : List[str], random_dir : str, BO_run : int, tot
 
     all_influences = []
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        # all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
@@ -309,7 +310,8 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
 
     all_influences = []
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        # all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
@@ -393,6 +395,7 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
         val_datasets.append(val_dataset)
 
     # get tokenizer and model
+    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, model = get_tokenizer_and_model(model_id = model_id)
     lora_max_num_layers = len(model.model.layers)
     
@@ -464,7 +467,8 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
 
     all_influences = [] # not used currently
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        # all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     # for each BO iteration, do this...
     for i in tqdm(range(BO_run)):
@@ -598,6 +602,7 @@ def joint_opt_BO_LLM_fixed_feature_list(time_callback, lora_rank_max, data_domai
         val_datasets.append(val_dataset)
 
     # get tokenizer and model
+    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, model = get_tokenizer_and_model(model_id = model_id)
     lora_max_num_layers = len(model.model.layers)
     # input_X is the input to our GP:
@@ -664,7 +669,8 @@ def joint_opt_BO_LLM_fixed_feature_list(time_callback, lora_rank_max, data_domai
 
     all_influences = []
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        # all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
@@ -832,7 +838,8 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
 
     all_influences = []
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        # all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)

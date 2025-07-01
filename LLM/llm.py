@@ -29,7 +29,7 @@ from peft import (
 
 from transformers import LlamaForCausalLM, LlamaTokenizer
 
-from LLM.tokenize_util import *
+# from LLM.tokenize_util import *
 
 def get_tokenizer_and_model(model_id = "LLM/llama_8b_instruct"):
 
@@ -334,7 +334,7 @@ def load_data(data_domain):
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "pubmedqa":
-        dataset = datasets.load_dataset("bigbio/pubmed_qa", cache_dir = "./datasets")
+        dataset = datasets.load_dataset("bigbio/pubmed_qa", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "truthfulqa_gen":
@@ -346,9 +346,9 @@ def load_data(data_domain):
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "hellaswag":
-        dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
-        train_dataset = dataset["eval"]
-        val_dataset = dataset["eval"]
+        dataset = datasets.load_dataset("Rowan/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
+        train_dataset = dataset["train"]
+        val_dataset = dataset["validation"]
     elif data_domain == "sciq":
         dataset = datasets.load_dataset("allenai/sciq", cache_dir = "./datasets")
         train_dataset = dataset["train"]
@@ -365,10 +365,10 @@ def load_data(data_domain):
         dataset = datasets.load_dataset("dvilares/head_qa", "en", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
-    elif data_domain == "hellaswag":
-        dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
-        train_dataset = dataset["eval"]
-        val_dataset = dataset["eval"]
+    # elif data_domain == "hellaswag":
+    #     dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
+    #     train_dataset = dataset["eval"]
+    #     val_dataset = dataset["eval"]
     else:
         assert False, "data_domain not valid, pls check"
     return train_dataset, val_dataset
