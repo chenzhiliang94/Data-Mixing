@@ -1,5 +1,5 @@
 import json
-from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list
+from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list
 
 from argparse import ArgumentParser
 from transformers import TrainerCallback
@@ -89,6 +89,7 @@ task_metrics = {
   "triviaqa": "exact_match,remove_whitespace",
   "truthfulqa_gen": "bleu_acc,none",
   "wikitext": "word_perplexity,none",
+  "mmlu": "acc,none"
 }
 
 # set up training data (depending if we want ood)
@@ -188,6 +189,23 @@ for sample_method in sample_methods: # random sampling
                                                                         ucb_beta=ucb_beta,
                                                                         limit=limit,
                                                                         printout=True)
+        elif run_BO_on == "random":
+            print("using random configurations")
+            joint_opt_random(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
+                                                        random_dir = random_string, 
+                                                            BO_run = BO_run,
+                                                            total_data = total_data, 
+                                                            evaluation_cuda = cuda, 
+                                                            evaluation_task = evaluation_task,
+                                                            sampling_method = sample_method, 
+                                                            train_epochs=train_epochs, 
+                                                            training_batch=training_batch, 
+                                                            evaluation_batch=evaluation_batch,
+                                                            eval_steps=evaluation_steps,
+                                                            ucb_beta=ucb_beta,
+                                                            limit=limit,
+                                                            printout=True)
+            
         else:
             assert False
 

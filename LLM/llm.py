@@ -194,7 +194,8 @@ def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets,
         "sciq":generate_and_tokenize_prompt_sciq,
         "gsm8k":generate_and_tokenize_prompt_gsm8k,
         "squadv2":generate_and_tokenize_prompt_squad,
-        "headqa_en":generate_and_tokenize_prompt_headqa
+        "headqa_en":generate_and_tokenize_prompt_headqa,
+        "mmlu":generate_and_tokenize_prompt_mmlu
     }
     
     # sample the correct amount of data from each domain
@@ -365,10 +366,14 @@ def load_data(data_domain):
         dataset = datasets.load_dataset("dvilares/head_qa", "en", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
-    # elif data_domain == "hellaswag":
-    #     dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
-    #     train_dataset = dataset["eval"]
-    #     val_dataset = dataset["eval"]
+    elif data_domain == "hellaswag":
+        dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
+        train_dataset = dataset["eval"]
+        val_dataset = dataset["eval"]
+    elif data_domain == "mmlu":
+        dataset = datasets.load_dataset("cais/mmlu", "all", cache_dir = "./datasets", trust_remote_code=True)
+        train_dataset = dataset["test"]
+        val_dataset = dataset["validation"]
     else:
         assert False, "data_domain not valid, pls check"
     return train_dataset, val_dataset
