@@ -8,6 +8,8 @@ from botorch.models.transforms.outcome import Standardize
 import shutil
 import torch
 from itertools import product
+import numpy as np
+import random
 
 from helper import get_data_from_mixing_ratio
 from image_training import train
@@ -148,7 +150,8 @@ def run_BO_for_LLM(data_domains : List[str], random_dir : str, BO_run : int, tot
 
     all_influences = []
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
@@ -309,7 +312,8 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
 
     all_influences = []
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
@@ -464,7 +468,8 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
 
     all_influences = [] # not used currently
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     # for each BO iteration, do this...
     for i in tqdm(range(BO_run)):
@@ -664,7 +669,8 @@ def joint_opt_BO_LLM_fixed_feature_list(time_callback, lora_rank_max, data_domai
 
     all_influences = []
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
@@ -804,8 +810,8 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
     input_X.append(int(lora_max_num_layers*0.5))
     input_X_between_0_1.append(0.5)
     # lora which layer to apply to
-    input_X = input_X + [1, 0, 1, 0, 0] # 5 dimension vector to indicate apply to all layers as initial input
-    input_X_between_0_1 = input_X_between_0_1 + [1, 1, 0, 0, 0]
+    input_X = input_X + [1, 1, 1, 1, 1] # 5 dimension vector to indicate apply to all layers as initial input
+    input_X_between_0_1 = input_X_between_0_1 + [1, 1, 1, 1, 1]
     # lora rank
     input_X.append(16) # initial rank = 16
     input_X_between_0_1.append(16.0/lora_rank_max)
@@ -832,7 +838,8 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
 
     all_influences = []
     for train_domain in data_domains:
-        all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+        all_influences.append(None)
+        #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
@@ -947,3 +954,201 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
         input_X = process_values(candidate[0])
         
     return GP_input, observed_output, gp
+
+def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], random_dir : str, BO_run : int, total_data : int, evaluation_cuda : str, evaluation_task : dict, ucb_beta, sampling_method = "random", train_epochs : int = 1, training_batch : int = 8, evaluation_batch : int = 4, printout=True, max_steps = -1, eval_steps=100, limit=100, model_id = "LLM/llama_8b_instruct"):
+
+    train_datasets = []
+    val_datasets = []
+    for data_domain in data_domains:
+        train_dataset, val_dataset = load_data(data_domain=data_domain)
+        train_datasets.append(train_dataset)
+        val_datasets.append(val_dataset)
+
+    # get tokenizer and model
+    tokenizer, model = get_tokenizer_and_model(model_id = model_id)
+    lora_max_num_layers = len(model.model.layers)
+    
+    # input_X is the input to our GP:
+    # first len(data_domains) are the mixing ratio for data (0 to 1, constrained to sum to 1)
+    # next 1 dimension is the number of layers to apply to (integer)
+    # next 5 dimension vector to indicate which layer to apply to (0 or 1)
+    # then lora rank (integer)
+    # then lora dropout (float)
+    
+    # input_X_between_0_1 is the standardized form of input_X (with everything between 0 and 1)
+    # We use this input for the BO to make optimization more stable.
+    
+    # The following represents the inputs used for first iteration, so it's hard coded.
+    # mixing ratio - even ratio for all domains for first iteration
+    input_X = (len(data_domains))*[float(1/len(data_domains))] # initial X is balanced all
+    input_X_between_0_1 = (len(data_domains))*[float(1/len(data_domains))]
+    
+    # lora number of layers - use half the layers for first iteration
+    input_X.append(int(lora_max_num_layers*0.5))
+    input_X_between_0_1.append(0.5)
+    
+    # apply lora to all modules for first iteration
+    input_X = input_X + [1, 1, 1, 1, 1] # 5 dimension vector to indicate apply to all layers as initial input
+    input_X_between_0_1 = input_X_between_0_1 + [1, 1, 1, 1, 1]
+    
+    # lora rank of 72 for first iteration
+    input_X.append(72)
+    input_X_between_0_1.append(72.0/lora_rank_max)
+    
+    # lora dropout of 0.05 for first iteration
+    input_X.append(0.05)
+    input_X_between_0_1.append(0.05)
+    
+    # next, define bounds for BO (which interval should our values lie)
+    # Recall that BO operates with input_X_between_0_1, which squashed everything to be in [0,1]
+    # mixing ratio bounds
+    lower_bound = [0] * (len(data_domains))
+    upper_bound = [1] * (len(data_domains))
+    
+    # lora number of layers bounds
+    lower_bound.append(0)
+    upper_bound.append(1)
+    
+    # which layer to apply to bounds
+    lower_bound+=[0, 0, 0, 0, 0]
+    upper_bound+=[1, 1, 1, 1, 1]
+    
+    # lora rank bounds
+    lower_bound.append(0)
+    upper_bound.append(1)
+    
+    # lora dropout bounds; this one is not in [0,1] but in [0,0.1]
+    lower_bound.append(0.0)
+    upper_bound.append(0.1)
+    
+    # the actual bounds
+    bounds = torch.stack([torch.tensor(lower_bound), torch.tensor(upper_bound)])
+    
+    GP_input = [] # X
+    observed_output = [] # y
+
+    all_influences = [] # not used currently
+    for train_domain in data_domains:
+        all_influences.append(None)
+        #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
+    
+    # for each BO iteration, do this...
+    for i in tqdm(range(BO_run)):
+        print("iteration: ", i)
+        print("input_X: ", input_X)
+        if printout:
+            print("mixing data with method: ", sampling_method)
+        
+        # take the model related inputs and arrange them in a nice lora config file
+        lora_config = arrange_lora_config(input_X[-2], input_X[-1], input_X[len(data_domains)], input_X[len(data_domains)+1:len(data_domains)+6])
+        
+        # sample from each domain and train a model according to data mixture ratio
+        # and the chosen lora config file which determines the model architecture
+        # path_to_final_model is the path to the trained model
+        path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
+                                                        train_datasets=train_datasets, 
+                                                        val_datasets=val_datasets, 
+                                                        data_domains=data_domains, 
+                                                        mixing_ratio=input_X[:len(data_domains)], 
+                                                        additional_info=all_influences, # not used atm
+                                                        total_number_datapoints=total_data, 
+                                                        run_name="BO_run_" +str(i),
+                                                        method=sampling_method,
+                                                        train_epochs=train_epochs, 
+                                                        batch_size=training_batch,
+                                                        max_step=max_steps,
+                                                        lora_config=lora_config,
+                                                        eval_steps=eval_steps, callback=[time_callback])
+        # free the gpu memory
+        with torch.no_grad():
+            torch.cuda.empty_cache()
+        
+        # load the model from path_to_final_model
+        print("evaluating...")
+        lora_path = path_to_final_model
+        config = PeftConfig.from_pretrained(lora_path)
+        model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
+        lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
+        tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
+        
+        # ideally we only have one evaluation task. But the code below works
+        # for any weighted average of several task. But for now, we only use a single task.
+        # each task has a specified metric that's passed here.
+        observed_performance = 0
+        tasks = list(evaluation_task.keys())
+        results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+        for task in evaluation_task:
+            task_weight, metric = evaluation_task[task]
+            perf = results["results"][task][metric]
+            if task == "wikitext":
+                perf = - perf # we want to maximize the score, so for wikitext perplexity we maximize instead
+            observed_performance += (perf * task_weight)
+        print("current iteration weighted performance: ", observed_performance)
+        lora_model.to("cpu")
+        
+        print("deleting lora model after evaluation.") # after evaluation, delete the model since no need already.
+        shutil.rmtree(lora_path, ignore_errors=True)
+        
+        # generate random candidate:
+        #[tensor(0.2207), tensor(0.2730), tensor(0.0525), tensor(0.2114), 0,
+        # tensor(0.1078), 0, tensor(0.1324), 10, 0, 0, 0, 0, 1, 34, 0.0748564749956131]
+        # length is len_domain + 1 + 5 + 1 + 1
+        def random_generator(data_domains, num_extra_vals=3, max_value=100):
+            result = []
+
+            # a) First len(data_domains) values sum to 1
+            weights = np.random.dirichlet(np.ones(len(data_domains))).tolist()
+            result.extend(weights)
+
+            # b) One random value between 0 and 1
+            result.append(random.uniform(0, 1))
+
+            # c) Next 5 values are either 0 or 1
+            result.extend([random.randint(0, 1) for _ in range(5)])
+
+            # d) Next num_extra_vals random values between 0 and 1
+            result.extend([random.uniform(0, 1) for _ in range(num_extra_vals)])
+
+            # e) Last value is between 0 and max_value
+            result.append(random.uniform(0, max_value))
+
+
+            return result
+
+        candidate = [random_generator(len(data_domains), 5, 0.1)]
+        
+        # next candidate are between [0,1] values.
+        # We need to perform some reverse engineering to make them into the correct values
+        # i.e., reverse normalization.
+        def process_values(values, data_domains_len):
+            result = []
+            
+            # Step 1: Squash first `data_domains_len` elements if less than 0.05
+            for v in values[:data_domains_len]:
+                result.append(0 if v.item() < 0.05 else v)
+            
+            # Step 2: lora layers
+            if len(values) > data_domains_len:
+                result.append(round(lora_max_num_layers*values[data_domains_len].item()))
+            
+            # Step 3: Round the next 5 elements: integer options
+            start = data_domains_len + 1
+            for v in values[start:start+5]:
+                result.append(round(v.item()))
+            
+            # Step 4: lora rank
+            if len(values) > start + 5:
+                result.append(round(lora_rank_max * values[start + 5].item()))
+            
+            # Step 5: drop out; unchanged
+            if len(values) > start + 6:
+                result.append(values[start + 6].item())
+            print("proposed candidate after processing:", result)
+            return result
+        print("proposed candidate before processing:", candidate[0])
+        
+        # these are updated with the candidates and used in next iteration
+        input_X_between_0_1 = list(candidate[0])
+        input_X = process_values(candidate[0], len(data_domains))
+        
+    return GP_input, observed_output
