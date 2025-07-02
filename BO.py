@@ -321,44 +321,46 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
         
         lora_config = arrange_lora_config(default_rank, default_dropout, default_num_layers_to_apply, default_layer)
         
-        # sample from each domain and train a model
-        path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
-                                                        train_datasets=train_datasets, 
-                                                        val_datasets=val_datasets, 
-                                                        data_domains=data_domains, 
-                                                        mixing_ratio=input_X[:len(data_domains)], 
-                                                        additional_info=all_influences, # add IF value
-                                                        total_number_datapoints=total_data, 
-                                                        run_name="BO_run_" +str(i),
-                                                        method=sampling_method,
-                                                        train_epochs=train_epochs, 
-                                                        batch_size=training_batch,
-                                                        max_step=max_steps,
-                                                        lora_config=lora_config,
-                                                        eval_steps=eval_steps, callback=[time_callback])
-        # free gpu memory
-        with torch.no_grad():
-            torch.cuda.empty_cache()
-        print("evaluating...")
-        lora_path = path_to_final_model
-        config = PeftConfig.from_pretrained(lora_path)
-        model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
-        lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
-        tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
-        
-        observed_performance = 0
-        tasks = list(evaluation_task.keys())
-        results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
-        print("deleting lora model after evaluation.")
-        shutil.rmtree(lora_path, ignore_errors=True)
-        for task in evaluation_task:
-            task_weight, metric = evaluation_task[task]
-            perf = results["results"][task][metric]
-            if task == "wikitext":
-                perf = - perf # we want to maximize the score, so for perplexity we maximize instead
-            observed_performance += (perf * task_weight)
+        if lora_config is None:
+            observed_performance = 0.1 # very bad performance if we use this
+        else: # sample from each domain and train a model
+            path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
+                                                            train_datasets=train_datasets, 
+                                                            val_datasets=val_datasets, 
+                                                            data_domains=data_domains, 
+                                                            mixing_ratio=input_X[:len(data_domains)], 
+                                                            additional_info=all_influences, # add IF value
+                                                            total_number_datapoints=total_data, 
+                                                            run_name="BO_run_" +str(i),
+                                                            method=sampling_method,
+                                                            train_epochs=train_epochs, 
+                                                            batch_size=training_batch,
+                                                            max_step=max_steps,
+                                                            lora_config=lora_config,
+                                                            eval_steps=eval_steps, callback=[time_callback])
+            # free gpu memory
+            with torch.no_grad():
+                torch.cuda.empty_cache()
+            print("evaluating...")
+            lora_path = path_to_final_model
+            config = PeftConfig.from_pretrained(lora_path)
+            model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
+            lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
+            tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
+            
+            observed_performance = 0
+            tasks = list(evaluation_task.keys())
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            print("deleting lora model after evaluation.")
+            shutil.rmtree(lora_path, ignore_errors=True)
+            for task in evaluation_task:
+                task_weight, metric = evaluation_task[task]
+                perf = results["results"][task][metric]
+                if task == "wikitext":
+                    perf = - perf # we want to maximize the score, so for perplexity we maximize instead
+                observed_performance += (perf * task_weight)
+            lora_model.to("cpu")
         print("current iteration weighted performance: ", observed_performance)
-        lora_model.to("cpu")
         # format the observed performance and current parameters for this round with previously seen values
         current_gp_input = list(input_X_between_0_1)
         
@@ -481,53 +483,46 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
         # take the model related inputs and arrange them in a nice lora config file
         lora_config = arrange_lora_config(input_X[-2], input_X[-1], input_X[len(data_domains)], input_X[len(data_domains)+1:len(data_domains)+6])
         
-        # sample from each domain and train a model according to data mixture ratio
-        # and the chosen lora config file which determines the model architecture
-        # path_to_final_model is the path to the trained model
-        path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
-                                                        train_datasets=train_datasets, 
-                                                        val_datasets=val_datasets, 
-                                                        data_domains=data_domains, 
-                                                        mixing_ratio=input_X[:len(data_domains)], 
-                                                        additional_info=all_influences, # not used atm
-                                                        total_number_datapoints=total_data, 
-                                                        run_name="BO_run_" +str(i),
-                                                        method=sampling_method,
-                                                        train_epochs=train_epochs, 
-                                                        batch_size=training_batch,
-                                                        max_step=max_steps,
-                                                        lora_config=lora_config,
-                                                        eval_steps=eval_steps, callback=[time_callback])
-        # free the gpu memory
-        with torch.no_grad():
-            torch.cuda.empty_cache()
-        
-        # load the model from path_to_final_model
-        print("evaluating...")
-        lora_path = path_to_final_model
-        config = PeftConfig.from_pretrained(lora_path)
-        model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
-        lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
-        tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
-        
-        # ideally we only have one evaluation task. But the code below works
-        # for any weighted average of several task. But for now, we only use a single task.
-        # each task has a specified metric that's passed here.
-        observed_performance = 0
-        tasks = list(evaluation_task.keys())
-        results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
-        for task in evaluation_task:
-            task_weight, metric = evaluation_task[task]
-            perf = results["results"][task][metric]
-            if task == "wikitext":
-                perf = - perf # we want to maximize the score, so for wikitext perplexity we maximize instead
-            observed_performance += (perf * task_weight)
+        if lora_config is None:
+                observed_performance = 0.1 # very bad performance if we use this
+        else: # sample from each domain and train a model
+            path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
+                                                            train_datasets=train_datasets, 
+                                                            val_datasets=val_datasets, 
+                                                            data_domains=data_domains, 
+                                                            mixing_ratio=input_X[:len(data_domains)], 
+                                                            additional_info=all_influences, # add IF value
+                                                            total_number_datapoints=total_data, 
+                                                            run_name="BO_run_" +str(i),
+                                                            method=sampling_method,
+                                                            train_epochs=train_epochs, 
+                                                            batch_size=training_batch,
+                                                            max_step=max_steps,
+                                                            lora_config=lora_config,
+                                                            eval_steps=eval_steps, callback=[time_callback])
+            # free gpu memory
+            with torch.no_grad():
+                torch.cuda.empty_cache()
+            print("evaluating...")
+            lora_path = path_to_final_model
+            config = PeftConfig.from_pretrained(lora_path)
+            model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
+            lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
+            tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
+            
+            observed_performance = 0
+            tasks = list(evaluation_task.keys())
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            print("deleting lora model after evaluation.")
+            shutil.rmtree(lora_path, ignore_errors=True)
+            for task in evaluation_task:
+                task_weight, metric = evaluation_task[task]
+                perf = results["results"][task][metric]
+                if task == "wikitext":
+                    perf = - perf # we want to maximize the score, so for perplexity we maximize instead
+                observed_performance += (perf * task_weight)
+            lora_model.to("cpu")
         print("current iteration weighted performance: ", observed_performance)
-        lora_model.to("cpu")
-        
-        print("deleting lora model after evaluation.") # after evaluation, delete the model since no need already.
-        shutil.rmtree(lora_path, ignore_errors=True)
-        
         # format the observed performance and current parameters for this round with previously seen values
         # see BO tutorial - this does the exact same thing.
         # Notice our BO and GP works with input_X_between_0_1, and not input_X
@@ -717,8 +712,8 @@ def joint_opt_BO_LLM_fixed_feature_list(time_callback, lora_rank_max, data_domai
                 if task == "wikitext":
                     perf = - perf # we want to maximize the score, so for perplexity we maximize instead
                 observed_performance += (perf * task_weight)
-            print("current iteration weighted performance: ", observed_performance)
             lora_model.to("cpu")
+        print("current iteration weighted performance: ", observed_performance)
         # format the observed performance and current parameters for this round with previously seen values
         current_gp_input = list(input_X_between_0_1)
         
@@ -849,65 +844,46 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
         # lora_r, lora_dropout, num_layers_to_apply, five_dim_vector
         lora_config = arrange_lora_config(input_X[6], input_X[7], input_X[0], input_X[1:6])
             
-        '''
-        0: layers
-        1:6: 5 dim
-        6: lora rank
-        7: lora dropout
-        '''
-        # lora number of layers 
-        # input_X.append(int(lora_max_num_layers*0.5))
-        # input_X_between_0_1.append(0.5)
-        # # lora which layer to apply to
-        # input_X = input_X + [1, 0, 1, 0, 0] # 5 dimension vector to indicate apply to all layers as initial input
-        # input_X_between_0_1 = input_X_between_0_1 + [1, 1, 0, 0, 0]
-        # # lora rank
-        # input_X.append(16) # initial rank = 16
-        # input_X_between_0_1.append(16.0/lora_rank_max)
-        # # lora dropout
-        # input_X.append(0.05) # initial dropout=0.05
-        # input_X_between_0_1.append(0.05)
-    
-        # sample from each domain and train a model
-        path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
-                                                        train_datasets=train_datasets, 
-                                                        val_datasets=val_datasets, 
-                                                        data_domains=data_domains, 
-                                                        mixing_ratio=mixing_ratio, 
-                                                        additional_info=all_influences, # add IF value
-                                                        total_number_datapoints=total_data, 
-                                                        run_name="BO_run_" +str(i),
-                                                        method=sampling_method,
-                                                        train_epochs=train_epochs, 
-                                                        batch_size=training_batch,
-                                                        max_step=max_steps,
-                                                        lora_config=lora_config,
-                                                        eval_steps=eval_steps, callback=[time_callback])
-        # free gpu memory
-        with torch.no_grad():
-            torch.cuda.empty_cache()
-        print("evaluating...")
-        lora_path = path_to_final_model
-        config = PeftConfig.from_pretrained(lora_path)
-        model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
-        lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
-        tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
-        
-        observed_performance = 0
-        tasks = list(evaluation_task.keys())
-
-        results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
-
-        print("deleting lora model after evaluation.")
-        shutil.rmtree(lora_path, ignore_errors=True)
-        for task in evaluation_task:
-            task_weight, metric = evaluation_task[task]
-            perf = results["results"][task][metric]
-            if task == "wikitext":
-                perf = - perf # we want to maximize the score, so for perplexity we maximize instead
-            observed_performance += (perf * task_weight)
+        if lora_config is None:
+            observed_performance = 0.1 # very bad performance if we use this
+        else: # sample from each domain and train a model
+            path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
+                                                            train_datasets=train_datasets, 
+                                                            val_datasets=val_datasets, 
+                                                            data_domains=data_domains, 
+                                                            mixing_ratio=mixing_ratio, 
+                                                            additional_info=all_influences, # add IF value
+                                                            total_number_datapoints=total_data, 
+                                                            run_name="BO_run_" +str(i),
+                                                            method=sampling_method,
+                                                            train_epochs=train_epochs, 
+                                                            batch_size=training_batch,
+                                                            max_step=max_steps,
+                                                            lora_config=lora_config,
+                                                            eval_steps=eval_steps, callback=[time_callback])
+            # free gpu memory
+            with torch.no_grad():
+                torch.cuda.empty_cache()
+            print("evaluating...")
+            lora_path = path_to_final_model
+            config = PeftConfig.from_pretrained(lora_path)
+            model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
+            lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
+            tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
+            
+            observed_performance = 0
+            tasks = list(evaluation_task.keys())
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            print("deleting lora model after evaluation.")
+            shutil.rmtree(lora_path, ignore_errors=True)
+            for task in evaluation_task:
+                task_weight, metric = evaluation_task[task]
+                perf = results["results"][task][metric]
+                if task == "wikitext":
+                    perf = - perf # we want to maximize the score, so for perplexity we maximize instead
+                observed_performance += (perf * task_weight)
+            lora_model.to("cpu")
         print("current iteration weighted performance: ", observed_performance)
-        lora_model.to("cpu")
         # format the observed performance and current parameters for this round with previously seen values
         current_gp_input = list(input_X_between_0_1)
         
@@ -1042,53 +1018,58 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
         # take the model related inputs and arrange them in a nice lora config file
         lora_config = arrange_lora_config(input_X[-2], input_X[-1], input_X[len(data_domains)], input_X[len(data_domains)+1:len(data_domains)+6])
         
-        # sample from each domain and train a model according to data mixture ratio
-        # and the chosen lora config file which determines the model architecture
-        # path_to_final_model is the path to the trained model
-        path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
-                                                        train_datasets=train_datasets, 
-                                                        val_datasets=val_datasets, 
-                                                        data_domains=data_domains, 
-                                                        mixing_ratio=input_X[:len(data_domains)], 
-                                                        additional_info=all_influences, # not used atm
-                                                        total_number_datapoints=total_data, 
-                                                        run_name="BO_run_" +str(i),
-                                                        method=sampling_method,
-                                                        train_epochs=train_epochs, 
-                                                        batch_size=training_batch,
-                                                        max_step=max_steps,
-                                                        lora_config=lora_config,
-                                                        eval_steps=eval_steps, callback=[time_callback])
-        # free the gpu memory
-        with torch.no_grad():
-            torch.cuda.empty_cache()
+        if lora_config is not None:
+            
+            # sample from each domain and train a model according to data mixture ratio
+            # and the chosen lora config file which determines the model architecture
+            # path_to_final_model is the path to the trained model
+            path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
+                                                            train_datasets=train_datasets, 
+                                                            val_datasets=val_datasets, 
+                                                            data_domains=data_domains, 
+                                                            mixing_ratio=input_X[:len(data_domains)], 
+                                                            additional_info=all_influences, # not used atm
+                                                            total_number_datapoints=total_data, 
+                                                            run_name="BO_run_" +str(i),
+                                                            method=sampling_method,
+                                                            train_epochs=train_epochs, 
+                                                            batch_size=training_batch,
+                                                            max_step=max_steps,
+                                                            lora_config=lora_config,
+                                                            eval_steps=eval_steps, callback=[time_callback])
+            # free the gpu memory
+            with torch.no_grad():
+                torch.cuda.empty_cache()
+            
+            # load the model from path_to_final_model
+            print("evaluating...")
+            lora_path = path_to_final_model
+            config = PeftConfig.from_pretrained(lora_path)
+            model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
+            lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
+            tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
+            
+            # ideally we only have one evaluation task. But the code below works
+            # for any weighted average of several task. But for now, we only use a single task.
+            # each task has a specified metric that's passed here.
+            observed_performance = 0
+            tasks = list(evaluation_task.keys())
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            for task in evaluation_task:
+                task_weight, metric = evaluation_task[task]
+                perf = results["results"][task][metric]
+                if task == "wikitext":
+                    perf = - perf # we want to maximize the score, so for wikitext perplexity we maximize instead
+                observed_performance += (perf * task_weight)
+            lora_model.to("cpu")
+
+            print("deleting lora model after evaluation.") # after evaluation, delete the model since no need already.
+            shutil.rmtree(lora_path, ignore_errors=True)
         
-        # load the model from path_to_final_model
-        print("evaluating...")
-        lora_path = path_to_final_model
-        config = PeftConfig.from_pretrained(lora_path)
-        model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
-        lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
-        tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
+        else:
+            observed_performance = 0.1
         
-        # ideally we only have one evaluation task. But the code below works
-        # for any weighted average of several task. But for now, we only use a single task.
-        # each task has a specified metric that's passed here.
-        observed_performance = 0
-        tasks = list(evaluation_task.keys())
-        results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
-        for task in evaluation_task:
-            task_weight, metric = evaluation_task[task]
-            perf = results["results"][task][metric]
-            if task == "wikitext":
-                perf = - perf # we want to maximize the score, so for wikitext perplexity we maximize instead
-            observed_performance += (perf * task_weight)
         print("current iteration weighted performance: ", observed_performance)
-        lora_model.to("cpu")
-        
-        print("deleting lora model after evaluation.") # after evaluation, delete the model since no need already.
-        shutil.rmtree(lora_path, ignore_errors=True)
-        
         # generate random candidate:
         #[tensor(0.2207), tensor(0.2730), tensor(0.0525), tensor(0.2114), 0,
         # tensor(0.1078), 0, tensor(0.1324), 10, 0, 0, 0, 0, 1, 34, 0.0748564749956131]
@@ -1115,7 +1096,7 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
 
             return result
 
-        candidate = [random_generator(len(data_domains), 5, 0.1)]
+        candidate = [random_generator(data_domains, 5, 0.1)]
         
         # next candidate are between [0,1] values.
         # We need to perform some reverse engineering to make them into the correct values
@@ -1146,6 +1127,10 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
             print("proposed candidate after processing:", result)
             return result
         print("proposed candidate before processing:", candidate[0])
+        
+        current_gp_input = list(input_X_between_0_1)
+        GP_input.append(current_gp_input)
+        observed_output.append(observed_performance)
         
         # these are updated with the candidates and used in next iteration
         input_X_between_0_1 = list(candidate[0])
