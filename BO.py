@@ -399,6 +399,7 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
         val_datasets.append(val_dataset)
 
     # get tokenizer and model
+    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, model = get_tokenizer_and_model(model_id = model_id)
     lora_max_num_layers = len(model.model.layers)
     
@@ -598,6 +599,7 @@ def joint_opt_BO_LLM_fixed_feature_list(time_callback, lora_rank_max, data_domai
         val_datasets.append(val_dataset)
 
     # get tokenizer and model
+    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, model = get_tokenizer_and_model(model_id = model_id)
     lora_max_num_layers = len(model.model.layers)
     # input_X is the input to our GP:
