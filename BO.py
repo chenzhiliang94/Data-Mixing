@@ -10,6 +10,7 @@ import torch
 from itertools import product
 import numpy as np
 import random
+from typing import Optional, List
 
 from helper import get_data_from_mixing_ratio
 from image_training import train
@@ -238,6 +239,7 @@ def arrange_lora_config(lora_r, lora_dropout, num_layers_to_apply, five_dim_vect
     five_dim_vector = List[float]. Five dimension
     '''
     print("arranging lora config with parameters: ", lora_r, lora_dropout, num_layers_to_apply, five_dim_vector)
+
     # only .mlp layers have up, down, gate proj
     # only .self_attn layers have q, v, k proj
     # ["model.layers.0.self_attn.k_proj"]
@@ -295,6 +297,7 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
         val_datasets.append(val_dataset)
 
     # get tokenizer and model
+    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, model = get_tokenizer_and_model(model_id = model_id)
     
     # mixing ratio
@@ -302,8 +305,8 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
     input_X_between_0_1 = (len(data_domains))*[float(1/len(data_domains))]
 
     # mixing ratio bounds
-    lower_bound = [0] * (len(data_domains))
-    upper_bound = [1] * (len(data_domains))
+    lower_bound = [0.0] * (len(data_domains))
+    upper_bound = [1.0] * (len(data_domains))
     
     bounds = torch.stack([torch.tensor(lower_bound), torch.tensor(upper_bound)])
     
@@ -474,6 +477,10 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
         all_influences.append(None)
         #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
+    torch.manual_seed(42)
+    np.random.seed(42)
+    random.seed(42)
+
     # for each BO iteration, do this...
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
@@ -780,8 +787,10 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
         val_datasets.append(val_dataset)
 
     # get tokenizer and model
-    tokenizer, model = get_tokenizer_and_model(model_id = model_id)
-    lora_max_num_layers = len(model.model.layers)
+    # model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+    # tokenizer, model = get_tokenizer_and_model(model_id = model_id)
+    lora_max_num_layers = 32
+
     # input_X is the input to our GP:
     # first len(data_domains) are the mixing ratio (0 to 1, constrained to sum to 1)
     # next 1 dimension is the number of layers to apply to (integer)
@@ -837,8 +846,17 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
     for train_domain in data_domains:
         all_influences.append(None)
         #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
-    
+
+    torch.manual_seed(42)
+    np.random.seed(42)
+    random.seed(42)
+
+
     for i in tqdm(range(BO_run)):
+        # get tokenizer and model
+        model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
+
         print("iteration: ", i)
         print("input_X: ", input_X)
         if printout:
@@ -905,7 +923,7 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
         x = list(range(len(data_domains)))
         candidate, acq_value = optimize_acqf(
             UCB, bounds=bounds, q=1, num_restarts=5, raw_samples=10,
-            equality_constraints = [(torch.tensor(x), torch.tensor(A), 1)] # edit this TODO.
+            # equality_constraints = [(torch.tensor(x, dtype=torch.float), torch.tensor(A, dtype=torch.float), 1)] # remove this line because we do not use data mixture here
         )
         
         def process_values(values):
@@ -1139,3 +1157,127 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
         input_X = process_values(candidate[0], len(data_domains))
         
     return GP_input, observed_output
+
+def evaluate_single_configuration(time_callback, lora_rank_max, data_domains : List[str], random_dir : str, total_data : int, evaluation_cuda : str, evaluation_task : dict, init_mixing_ratio: List[float] = None, init_lora_num_layers: int = None, init_lora_modules: List[int] = None, init_lora_rank: int = None, init_lora_dropout: float = None, sampling_method = "random", train_epochs : int = 1, training_batch : int = 8, evaluation_batch : int = 4, max_steps = -1, eval_steps=100, limit=100, model_id = "LLM/llama_8b_instruct") -> float:
+
+    def initialise_values(init_mixing_ratio, init_lora_num_layers, init_lora_rank, init_lora_dropout):
+        if init_mixing_ratio is None:
+            input_X = (len(data_domains))*[float(1/len(data_domains))]
+            input_X_between_0_1 = (len(data_domains))*[float(1/len(data_domains))]
+        else:
+            input_X = init_mixing_ratio
+            input_X_between_0_1 = init_mixing_ratio
+        if init_lora_num_layers is None:
+            input_X.append(int(len(data_domains)*0.5))
+            input_X_between_0_1.append(0.5)
+        else:
+            input_X.append(init_lora_num_layers)
+            input_X_between_0_1.append(init_lora_num_layers/len(data_domains))
+        if init_lora_modules is None:
+            input_X = input_X + [1, 1, 1, 1, 1] # apply lora to all modules
+            input_X_between_0_1 = input_X_between_0_1 + [1, 1, 1, 1, 1] # apply lora to all modules
+        else:
+            input_X = input_X + init_lora_modules
+            input_X_between_0_1 = input_X_between_0_1 + init_lora_modules
+        if init_lora_rank is None:
+            input_X.append(72)
+            input_X_between_0_1.append(72.0/lora_rank_max)
+        else:
+            input_X.append(init_lora_rank)
+            input_X_between_0_1.append(init_lora_rank/lora_rank_max)
+        if init_lora_dropout is None:
+            input_X.append(0.05)
+            input_X_between_0_1.append(0.05)
+        else:
+            input_X.append(init_lora_dropout)
+            input_X_between_0_1.append(init_lora_dropout)
+        
+        return input_X, input_X_between_0_1
+    
+    input_X, input_X_between_0_1 = initialise_values(
+        init_mixing_ratio, 
+        init_lora_num_layers, 
+        init_lora_rank, 
+        init_lora_dropout
+    )
+
+    print("initial input_X: ", input_X)
+
+    train_datasets = []
+    val_datasets = []
+    for data_domain in data_domains:
+        train_dataset, val_dataset = load_data(data_domain=data_domain)
+        train_datasets.append(train_dataset)
+        val_datasets.append(val_dataset)
+
+    # get tokenizer and model
+    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+    tokenizer, model = get_tokenizer_and_model(model_id = model_id)
+    print("number of model layers = ", len(model.model.layers))
+    
+    # Create LoRA config
+    lora_config = arrange_lora_config(
+        input_X[-2],                         # lora rank
+        input_X[-1],                         # dropout
+        input_X[len(data_domains)],         # lora layer
+        input_X[len(data_domains)+1:len(data_domains)+6]  # other lora params
+    )
+
+    all_influences = [] # not used currently
+    for train_domain in data_domains:
+        all_influences.append(None)
+
+    if lora_config is None:
+        return 0.1  # penalise bad config
+
+    torch.manual_seed(42)
+    np.random.seed(42)
+    random.seed(42)
+
+    # Train model
+    path_to_final_model = extract_data_mixture_and_train(
+        model=model,
+        random_dir=random_dir,
+        tokenizer=tokenizer,
+        train_datasets=train_datasets,
+        val_datasets=val_datasets,
+        data_domains=data_domains,
+        mixing_ratio=input_X[:len(data_domains)],
+        additional_info=all_influences,
+        total_number_datapoints=total_data,
+        run_name="manual_eval",
+        method=sampling_method,
+        train_epochs=train_epochs,
+        batch_size=training_batch,
+        max_step=max_steps,
+        lora_config=lora_config,
+        eval_steps=eval_steps,
+        callback=[time_callback] if time_callback else []
+    )
+
+    # free gpu memory
+    with torch.no_grad():
+        torch.cuda.empty_cache()
+    print("evaluating...")
+    lora_path = path_to_final_model
+    config = PeftConfig.from_pretrained(lora_path)
+    model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, torch_dtype='auto')
+    lora_model = PeftModel.from_pretrained(model, lora_path).to(evaluation_cuda)
+    tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path, trust_remote_code=True,)
+    
+    observed_performance = 0
+    tasks = list(evaluation_task.keys())
+    lora_model.eval()
+    results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+    print("deleting lora model after evaluation.")
+    shutil.rmtree(lora_path, ignore_errors=True)
+    for task in evaluation_task:
+        task_weight, metric = evaluation_task[task]
+        perf = results["results"][task][metric]
+        if task == "wikitext":
+            perf = - perf # we want to maximize the score, so for perplexity we maximize instead
+        observed_performance += (perf * task_weight)
+    lora_model.to("cpu")
+    print("Observed performance: ", observed_performance)
+
+    return observed_performance

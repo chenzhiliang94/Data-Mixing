@@ -1,5 +1,5 @@
 import json
-from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list
+from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list, evaluate_single_configuration
 
 from argparse import ArgumentParser
 from transformers import TrainerCallback
@@ -23,6 +23,11 @@ parser.add_argument("--ucb_beta", help="lora_rank")
 parser.add_argument("--limit", help="no. of samples for performance evaluation. Default is 100", default=100)
 parser.add_argument("--run_BO_on", help="all or model", default="all")
 parser.add_argument("--model")
+parser.add_argument("--init_mixing_ratio", help="Only for manual input: initial mixing ratio, comma separated, len=number of data domains", default=None) # e.g. 0.1,0.2,0.3...
+parser.add_argument("--init_lora_num_layers", help="Only for  manual input: initial lora num layers", default=None) # e.g. 1
+parser.add_argument("--init_lora_modules", help="Only for  manual input: initial lora modules, comma separated, len=5", default=None) # e.g. 1,0,0,1,1
+parser.add_argument("--init_lora_rank", help="Only for  manual input: initial lora rank", default=None) # e.g. 16
+parser.add_argument("--init_lora_dropout", help="Only for  manual input: initial lora dropout", default=None) # e.g. 0.05
 
 class TimerCallback(TrainerCallback):
     def __init__(self, max_duration_seconds):
@@ -68,6 +73,26 @@ ucb_beta = float(args["ucb_beta"])
 run_BO_on = str(args["run_BO_on"]) # either "model" or "data"
 limit = int(args["limit"]) # either "model" or "data" or "all"
 model_id = str(args["model"])
+if args["init_mixing_ratio"] is not None:
+    init_mixing_ratio = [float(x) for x in args["init_mixing_ratio"].split(",")]
+else:
+    init_mixing_ratio = None
+if args["init_lora_num_layers"] is not None:
+    init_lora_num_layers = int(args["init_lora_num_layers"])
+else:
+    init_lora_num_layers = None
+if args["init_lora_modules"] is not None:
+    init_lora_modules = [int(x) for x in args["init_lora_modules"].split(",")]
+else:
+    init_lora_modules = None
+if args["init_lora_rank"] is not None:
+    init_lora_rank = int(args["init_lora_rank"])
+else:
+    init_lora_rank = None
+if args["init_lora_dropout"] is not None:
+    init_lora_dropout = float(args["init_lora_dropout"])
+else:
+    init_lora_dropout = None
 
 if limit < 0:
     limit = None
@@ -83,7 +108,7 @@ task_metrics = {
   "commonsense_qa": "acc,none",
   "gsm8k": "exact_match,strict-match",
   "headqa_en": "acc,none",
-  "hellaswag": "acc,none",
+  "rowan_hellaswag": "acc,none",
   "pubmedqa": "acc,none",
   "sciq": "acc_norm,none",
   "triviaqa": "exact_match,remove_whitespace",
@@ -205,7 +230,26 @@ for sample_method in sample_methods: # random sampling
                                                             ucb_beta=ucb_beta,
                                                             limit=limit,
                                                             printout=True)
-            
+        elif run_BO_on == "single_eval":    # this is for manual input, not running BO
+            print("not running BO, just printing performance when using manual inputs")
+            observed_output = evaluate_single_configuration(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
+                                                            random_dir = random_string, 
+                                                            total_data = total_data, 
+                                                            evaluation_cuda = cuda, 
+                                                            evaluation_task = evaluation_task,
+                                                            sampling_method = sample_method, 
+                                                            train_epochs=train_epochs, 
+                                                            training_batch=training_batch, 
+                                                            evaluation_batch=evaluation_batch,
+                                                            eval_steps=evaluation_steps,
+                                                            limit=limit,
+                                                            init_mixing_ratio=init_mixing_ratio,
+                                                            init_lora_num_layers=init_lora_num_layers,
+                                                            init_lora_modules=init_lora_modules,
+                                                            init_lora_rank=init_lora_rank,
+                                                            init_lora_dropout=init_lora_dropout,
+                                                            )
+            exit() # Exit after single eval, no need to continue
         else:
             assert False
 
