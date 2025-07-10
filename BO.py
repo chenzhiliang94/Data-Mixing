@@ -297,8 +297,8 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
         val_datasets.append(val_dataset)
 
     # get tokenizer and model
-    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
-    tokenizer, model = get_tokenizer_and_model(model_id = model_id)
+    # model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+    # tokenizer, model = get_tokenizer_and_model(model_id = model_id)
     
     # mixing ratio
     input_X = (len(data_domains))*[float(1/len(data_domains))] # initial X is balanced all
@@ -318,7 +318,14 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
         all_influences.append(None)
         #all_influences.append(torch.load("influence/"+str(train_domain)+"_training.pt"))
     
+    torch.manual_seed(42)
+    np.random.seed(42)
+    random.seed(42)
+    
     for i in tqdm(range(BO_run)):
+        model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
+
         print("iteration: ", i)
         print("input_X: ", input_X) 
         
@@ -402,9 +409,9 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
         val_datasets.append(val_dataset)
 
     # get tokenizer and model
-    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
-    tokenizer, model = get_tokenizer_and_model(model_id = model_id)
-    lora_max_num_layers = len(model.model.layers)
+    # model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+    # tokenizer, model = get_tokenizer_and_model(model_id = model_id)
+    lora_max_num_layers = 32
     
     # for discrete BO; not used here.
     fixed_features_list =[{len(data_domains)+2:0},{len(data_domains)+2:1},
@@ -483,6 +490,9 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
 
     # for each BO iteration, do this...
     for i in tqdm(range(BO_run)):
+        model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
+
         print("iteration: ", i)
         print("input_X: ", input_X)
         if printout:
@@ -819,8 +829,8 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
     input_X = input_X + [1, 1, 1, 1, 1] # 5 dimension vector to indicate apply to all layers as initial input
     input_X_between_0_1 = input_X_between_0_1 + [1, 1, 1, 1, 1]
     # lora rank
-    input_X.append(16) # initial rank = 16
-    input_X_between_0_1.append(16.0/lora_rank_max)
+    input_X.append(72) # initial rank = 72
+    input_X_between_0_1.append(72.0/lora_rank_max)
     # lora dropout
     input_X.append(0.05) # initial dropout=0.05
     input_X_between_0_1.append(0.05)
@@ -863,7 +873,7 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
             print("mixing data with method: ", sampling_method)
         # lora_r, lora_dropout, num_layers_to_apply, five_dim_vector
         lora_config = arrange_lora_config(input_X[6], input_X[7], input_X[0], input_X[1:6])
-            
+
         if lora_config is None:
             observed_performance = 0.1 # very bad performance if we use this
         else: # sample from each domain and train a model
@@ -1214,6 +1224,7 @@ def evaluate_single_configuration(time_callback, lora_rank_max, data_domains : L
     model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, model = get_tokenizer_and_model(model_id = model_id)
     print("number of model layers = ", len(model.model.layers))
+    print(f"Base model param count: {sum(p.numel() for p in model.parameters())}")
     
     # Create LoRA config
     lora_config = arrange_lora_config(
@@ -1222,6 +1233,8 @@ def evaluate_single_configuration(time_callback, lora_rank_max, data_domains : L
         input_X[len(data_domains)],         # lora layer
         input_X[len(data_domains)+1:len(data_domains)+6]  # other lora params
     )
+
+    print("LoRA config applied:", lora_config)
 
     all_influences = [] # not used currently
     for train_domain in data_domains:

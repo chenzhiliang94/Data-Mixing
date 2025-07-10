@@ -114,7 +114,8 @@ task_metrics = {
   "triviaqa": "exact_match,remove_whitespace",
   "truthfulqa_gen": "bleu_acc,none",
   "wikitext": "word_perplexity,none",
-  "mmlu": "acc,none"
+  "mmlu": "acc,none",
+  "ai2_arc": "acc,none"
 }
 
 # set up training data (depending if we want ood)
@@ -199,7 +200,7 @@ for sample_method in sample_methods: # random sampling
         elif run_BO_on == "data":
             print("running BO only on data")
             GP_input, observed_output, gp = joint_opt_BO_LLM_only_data(time_callback=TimerCallback(time_limit), default_alpha=16, default_dropout=0.05, default_layer=[1,1,1,1,1],
-                                                                       default_num_layers_to_apply=16, default_rank=16,
+                                                                       default_num_layers_to_apply=16, default_rank=72,
                                                                        data_domains = data_domains,
                                                                         random_dir = random_string, 
                                                                         BO_run = BO_run,
