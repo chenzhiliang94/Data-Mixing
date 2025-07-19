@@ -21,7 +21,8 @@ parser.add_argument("--time_limit", help="time_limit")
 parser.add_argument("--lora_rank", help="lora_rank")
 parser.add_argument("--ucb_beta", help="lora_rank")
 parser.add_argument("--limit", help="no. of samples for performance evaluation. Default is 100", default=100)
-parser.add_argument("--run_BO_on", help="all or model", default="all")
+parser.add_argument("--run_BO_on", help="all or model or data or single_eval", default="all")
+parser.add_argument("--seed", help="seed value for single eval", type=int)
 parser.add_argument("--model")
 parser.add_argument("--init_mixing_ratio", help="Only for manual input: initial mixing ratio, comma separated, len=number of data domains", default=None) # e.g. 0.1,0.2,0.3...
 parser.add_argument("--init_lora_num_layers", help="Only for  manual input: initial lora num layers", default=None) # e.g. 1
@@ -157,6 +158,7 @@ for sample_method in sample_methods: # random sampling
                                                             total_data = total_data, 
                                                             evaluation_cuda = cuda, 
                                                             evaluation_task = evaluation_task,
+                                                            trial_number=x,
                                                             sampling_method = sample_method, 
                                                             train_epochs=train_epochs, 
                                                             training_batch=training_batch, 
@@ -164,7 +166,8 @@ for sample_method in sample_methods: # random sampling
                                                             eval_steps=evaluation_steps,
                                                             ucb_beta=ucb_beta,
                                                             limit=limit,
-                                                            printout=True)
+                                                            printout=True,
+                                                            seed=seed)
         elif run_BO_on == "all_fixed_features": # run BO on both data and model, but with some discrete optimization tricks; somehow this doesn't work well.
             print("running BO on both data and model with fixed feature list")
             GP_input, observed_output, gp = joint_opt_BO_LLM_fixed_feature_list(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
@@ -189,6 +192,7 @@ for sample_method in sample_methods: # random sampling
                                                             total_data = total_data, 
                                                             evaluation_cuda = cuda, 
                                                             evaluation_task = evaluation_task,
+                                                            trial_number=x,
                                                             sampling_method = sample_method, 
                                                             train_epochs=train_epochs, 
                                                             training_batch=training_batch, 
@@ -196,7 +200,8 @@ for sample_method in sample_methods: # random sampling
                                                             eval_steps=evaluation_steps,
                                                             ucb_beta=ucb_beta,
                                                             limit=limit,
-                                                            printout=True)
+                                                            printout=True,
+                                                            seed=seed)
         elif run_BO_on == "data":
             print("running BO only on data")
             GP_input, observed_output, gp = joint_opt_BO_LLM_only_data(time_callback=TimerCallback(time_limit), default_alpha=16, default_dropout=0.05, default_layer=[1,1,1,1,1],
@@ -207,6 +212,7 @@ for sample_method in sample_methods: # random sampling
                                                                         total_data = total_data, 
                                                                         evaluation_cuda = cuda, 
                                                                         evaluation_task = evaluation_task,
+                                                                        trial_number=x,
                                                                         sampling_method = sample_method, 
                                                                         train_epochs=train_epochs, 
                                                                         training_batch=training_batch, 
@@ -214,7 +220,8 @@ for sample_method in sample_methods: # random sampling
                                                                         eval_steps=evaluation_steps,
                                                                         ucb_beta=ucb_beta,
                                                                         limit=limit,
-                                                                        printout=True)
+                                                                        printout=True,
+                                                                        seed=seed)
         elif run_BO_on == "random":
             print("using random configurations")
             joint_opt_random(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
@@ -230,7 +237,8 @@ for sample_method in sample_methods: # random sampling
                                                             eval_steps=evaluation_steps,
                                                             ucb_beta=ucb_beta,
                                                             limit=limit,
-                                                            printout=True)
+                                                            printout=True,
+                                                            seed=seed)
         elif run_BO_on == "single_eval":    # this is for manual input, not running BO
             print("not running BO, just printing performance when using manual inputs")
             observed_output = evaluate_single_configuration(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
@@ -238,6 +246,7 @@ for sample_method in sample_methods: # random sampling
                                                             total_data = total_data, 
                                                             evaluation_cuda = cuda, 
                                                             evaluation_task = evaluation_task,
+                                                            seed=args["seed"],
                                                             sampling_method = sample_method, 
                                                             train_epochs=train_epochs, 
                                                             training_batch=training_batch, 

@@ -14,6 +14,7 @@ from lm_eval.models.huggingface import HFLM
 import datasets
 import os
 import sys
+import random
 
 import transformers
 from datasets import load_dataset, concatenate_datasets
@@ -106,7 +107,7 @@ def get_best_N_set(initial_dataset, N):
     assert len(current_chosen_dataset) == N + 1
     return current_chosen_dataset, all_selected_idx
 
-def sample(dataset, num_datapoints, additional_info, method, data_domain, seed=42):
+def sample(dataset, num_datapoints, additional_info, method, data_domain, seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
 
@@ -168,7 +169,7 @@ def sample(dataset, num_datapoints, additional_info, method, data_domain, seed=4
     sampled_dataset = dataset.select(indices)
     return sampled_dataset
 
-def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets, val_datasets, data_domains, mixing_ratio, additional_info, total_number_datapoints, run_name, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100, lora_config=None, callback=[], fix_training_samples=False):
+def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets, val_datasets, data_domains, mixing_ratio, additional_info, total_number_datapoints, run_name, seed=42, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100, lora_config=None, callback=[], fix_training_samples=False):
 
 #     '''
 #     model: llama base model
@@ -217,24 +218,17 @@ def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets,
         # print("number of datapoints needed (ratio * total): ", total_datapt)
         if total_datapt == 0:
             continue # skip if no data needed
-        if ratio == 1.0:
-            print("ratio is 1.0, don't have to sample")
-            sampled_train_data = train_dataset
-            sampled_val_data = val_dataset
-        else:
-            # print("sampling...")
-            sampled_train_data = sample(train_dataset, total_datapt, additional_info=IF_values, method=method, data_domain=data_domain)
-            # print("done sampling training")
-            sampled_val_data = sample(val_dataset, total_datapt, additional_info=None, method="random", data_domain=None)
-            # print("done sampling validation")
+        print("sampling...")
+        sampled_train_data = sample(train_dataset, total_datapt, additional_info=IF_values, method=method, data_domain=data_domain, seed=seed)
+        print("done sampling training")
+        sampled_val_data = sample(val_dataset, total_datapt, additional_info=None, method="random", data_domain=None, seed=seed)
+        print("done sampling validation")
         
-        # print("sampled training data: ", sampled_train_data[5])
-        
-        sampled_train_data = sampled_train_data.shuffle(seed=42).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
+        sampled_train_data = sampled_train_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
                                                                                    })
-        sampled_val_data = sampled_val_data.shuffle(seed=42).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
+        sampled_val_data = sampled_val_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
                                                                                    })
