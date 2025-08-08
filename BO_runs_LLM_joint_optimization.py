@@ -1,5 +1,5 @@
 import json
-from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list, evaluate_single_configuration
+from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list, evaluate_single_configuration, joint_opt_BO_LLM_with_vae
 
 from argparse import ArgumentParser
 from transformers import TrainerCallback
@@ -29,6 +29,25 @@ parser.add_argument("--init_lora_num_layers", help="Only for  manual input: init
 parser.add_argument("--init_lora_modules", help="Only for  manual input: initial lora modules, comma separated, len=5", default=None) # e.g. 1,0,0,1,1
 parser.add_argument("--init_lora_rank", help="Only for  manual input: initial lora rank", default=None) # e.g. 16
 parser.add_argument("--init_lora_dropout", help="Only for  manual input: initial lora dropout", default=None) # e.g. 0.05
+parser.add_argument("--vae_dim", help="latent dim for VAE-BO", type=int, default=10)
+parser.add_argument(
+    "--vae_hidden",
+    type=int,
+    default=64,
+    help="Dimensionality of the VAE’s hidden layers."
+)
+parser.add_argument(
+    "--vae_epochs",
+    type=int,
+    default=20,
+    help="Number of epochs to train the VAE."
+)
+parser.add_argument(
+    "--vae_lr",
+    type=float,
+    default=1e-3,
+    help="Learning rate for the VAE optimizer."
+)
 
 class TimerCallback(TrainerCallback):
     def __init__(self, max_duration_seconds):
@@ -100,7 +119,6 @@ if limit < 0:
 
 import random
 import string
-seed = random.randint(0,1000)
 # Generate a random string of size 5 using uppercase and lowercase letters
 random_string = ''.join(random.choices(string.ascii_letters, k=5))
 print("random sentence created:", random_string)
@@ -150,6 +168,9 @@ for sample_method in sample_methods: # random sampling
         #model_id="Qwen/Qwen2.5-7B-Instruct" # pass this into next function if necessary
         #model_id: str = "LLM/llama_8b_instruct"
         
+        rng = random.Random()
+        seed = rng.randint(0, 1000)
+
         if run_BO_on == "all": # run BO on both data and model
             print("running BO on both data and model")
             GP_input, observed_output, gp = joint_opt_BO_LLM(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
@@ -167,7 +188,8 @@ for sample_method in sample_methods: # random sampling
                                                             ucb_beta=ucb_beta,
                                                             limit=limit,
                                                             printout=True,
-                                                            seed=seed)
+                                                            seed=seed,
+                                                            output_dir=output_dir)
         elif run_BO_on == "all_fixed_features": # run BO on both data and model, but with some discrete optimization tricks; somehow this doesn't work well.
             print("running BO on both data and model with fixed feature list")
             GP_input, observed_output, gp = joint_opt_BO_LLM_fixed_feature_list(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
@@ -201,7 +223,8 @@ for sample_method in sample_methods: # random sampling
                                                             ucb_beta=ucb_beta,
                                                             limit=limit,
                                                             printout=True,
-                                                            seed=seed)
+                                                            seed=seed,
+                                                            output_dir=output_dir)
         elif run_BO_on == "data":
             print("running BO only on data")
             GP_input, observed_output, gp = joint_opt_BO_LLM_only_data(time_callback=TimerCallback(time_limit), default_alpha=16, default_dropout=0.05, default_layer=[1,1,1,1,1],
@@ -221,7 +244,8 @@ for sample_method in sample_methods: # random sampling
                                                                         ucb_beta=ucb_beta,
                                                                         limit=limit,
                                                                         printout=True,
-                                                                        seed=seed)
+                                                                        seed=seed,
+                                                                        output_dir=output_dir)
         elif run_BO_on == "random":
             print("using random configurations")
             joint_opt_random(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
@@ -239,6 +263,32 @@ for sample_method in sample_methods: # random sampling
                                                             limit=limit,
                                                             printout=True,
                                                             seed=seed)
+        elif run_BO_on == "vae":
+            print("running BO with VAE")
+            GP_input, observed_output, gp = joint_opt_BO_LLM_with_vae(time_callback=TimerCallback(time_limit),
+                                                                    lora_rank_max=lora_rank, 
+                                                                    data_domains=data_domains,
+                                                                    random_dir=random_string, 
+                                                                    BO_run=BO_run, 
+                                                                    total_data=total_data,
+                                                                    evaluation_cuda=cuda, 
+                                                                    evaluation_task=evaluation_task,
+                                                                    trial_number=x,
+                                                                    ucb_beta=ucb_beta, 
+                                                                    sampling_method=sample_method,
+                                                                    train_epochs=train_epochs, 
+                                                                    training_batch=training_batch,
+                                                                    evaluation_batch=evaluation_batch, 
+                                                                    printout=True,
+                                                                    max_steps=evaluation_steps, 
+                                                                    eval_steps=evaluation_steps,
+                                                                    limit=limit,
+                                                                    seed=seed,
+                                                                    output_dir=output_dir,
+                                                                    latent_dim=args["vae_dim"], 
+                                                                    vae_hidden=args["vae_hidden"],
+                                                                    vae_epochs= args["vae_epochs"], 
+                                                                    vae_lr=args["vae_lr"])
         elif run_BO_on == "single_eval":    # this is for manual input, not running BO
             print("not running BO, just printing performance when using manual inputs")
             observed_output = evaluate_single_configuration(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
