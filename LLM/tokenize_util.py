@@ -291,7 +291,7 @@ def generate_and_tokenize_prompt_gsm8k(data_point, tokenizer, add_eos_token, tra
         ]  # could be sped up, probably
     return tokenized_full_convo
 
-def generate_and_tokenize_prompt_hellaswag(data_point, tokenizer, add_eos_token, train_on_inputs):
+def generate_and_tokenize_prompt_datologyai_hellaswag(data_point, tokenizer, add_eos_token, train_on_inputs):
     # {'id': 30,
     # 'question': 'Gargling mouthwash: She gets them some water to gargle in their mouths. The boy and girl begin playing in the sink. The woman',
     # 'choices': ['shakes her head in disbelief and waves at her.',
@@ -304,6 +304,44 @@ def generate_and_tokenize_prompt_hellaswag(data_point, tokenizer, add_eos_token,
     system_prompt = {"role": "system", "content": "You are a helpful assistant with knowledge. Please guess the most likely continuation of the following setting by selecting from the given choices starting from choice 0."}
     user_Q = {"role": "user", "content": "The question is: \n:" + data_point['question'] + "\n\n The choices are: \n\n" + "\n\n".join(data_point["choices"])}
     llm_A = {"role": "assistant", "content": str(data_point["answerID"]) + ": " + str(data_point['choices'][int(data_point["answerID"])]) + "\""}
+    chat.append(system_prompt)
+    chat.append(user_Q)
+    user_prompt = tokenizer.apply_chat_template(chat, tokenize = False) # only the user chat template
+    
+    chat.append(llm_A)
+    full_convo = tokenizer.apply_chat_template(chat, tokenize = False) # full chat template
+    
+    # tokenize the chat template
+    tokenized_full_convo = tokenize(tokenizer, full_convo, add_eos_token=add_eos_token)
+    tokenized_user_prompt = tokenize(tokenizer, user_prompt, add_eos_token=add_eos_token)
+    
+    # adjust mask labels (important)
+    if not train_on_inputs:
+        
+        user_prompt_len = len(tokenized_user_prompt["input_ids"])
+        if add_eos_token:
+            user_prompt_len -= 1
+
+        tokenized_full_convo["labels"] = [
+            -100
+        ] * user_prompt_len + tokenized_full_convo["labels"][
+            user_prompt_len:
+        ]  # could be sped up, probably
+    return tokenized_full_convo
+
+def generate_and_tokenize_prompt_rowan_hellaswag(data_point, tokenizer, add_eos_token, train_on_inputs):
+    # {'id': 30,
+    # 'question': 'Gargling mouthwash: She gets them some water to gargle in their mouths. The boy and girl begin playing in the sink. The woman',
+    # 'choices': ['shakes her head in disbelief and waves at her.',
+    # 'laughs at the children dribbling water.',
+    # 'comes back and talks to the boys.',
+    # 'gets some food out of the fridge and they continue playing together.'],
+    # 'answerID': 1}
+    
+    chat = []
+    system_prompt = {"role": "system", "content": "You are a helpful assistant with knowledge. Please guess the most likely endings of the following sentence by selecting from the given choices starting from choice 0."}
+    user_Q = {"role": "user", "content": "The sentence is: \n:" + data_point['ctx'] + "\n\n The choices are: \n\n" + "\n\n".join(data_point["endings"])}
+    llm_A = {"role": "assistant", "content": str(data_point["label"])}
     chat.append(system_prompt)
     chat.append(user_Q)
     user_prompt = tokenizer.apply_chat_template(chat, tokenize = False) # only the user chat template
@@ -404,6 +442,48 @@ def generate_and_tokenize_prompt_mmlu(data_point, tokenizer, add_eos_token, trai
     system_prompt = {"role": "system", "content": "You are a helpful assistant. Please answer the following question by choosing the correct option."}
     user_Q = {"role": "user", "content": "Question: " + str(data_point["question"]) + "\n\n" + "Options: " + format(options)}
     llm_A = {"role": "assistant", "content": right_answer}
+    chat.append(system_prompt)
+    chat.append(user_Q)
+    user_prompt = tokenizer.apply_chat_template(chat, tokenize = False) # only the user chat template
+    
+    chat.append(llm_A)
+    full_convo = tokenizer.apply_chat_template(chat, tokenize = False) # full chat template
+    
+    # tokenize the chat template
+    tokenized_full_convo = tokenize(tokenizer, full_convo, add_eos_token=add_eos_token)
+    tokenized_user_prompt = tokenize(tokenizer, user_prompt, add_eos_token=add_eos_token)
+    
+    # adjust mask labels (important)
+    if not train_on_inputs:
+        
+        user_prompt_len = len(tokenized_user_prompt["input_ids"])
+        if add_eos_token:
+            user_prompt_len -= 1
+
+        tokenized_full_convo["labels"] = [
+            -100
+        ] * user_prompt_len + tokenized_full_convo["labels"][
+            user_prompt_len:
+        ]  # could be sped up, probably
+    return tokenized_full_convo
+
+def generate_and_tokenize_prompt_ai2_arc(data_point, tokenizer, add_eos_token, train_on_inputs):
+    
+    # {
+    #     "answerKey": "B",
+    #     "choices": {
+    #         "label": ["A", "B", "C", "D"],
+    #         "text": ["Shady areas increased.", "Food sources increased.", "Oxygen levels increased.", "Available water increased."]
+    #     },
+    #     "id": "Mercury_SC_405487",
+    #     "question": "One year, the oak trees in a park began producing more acorns than usual. The next year, the population of chipmunks in the park also increased. Which best explains why there were more chipmunks the next year?"
+    # }
+
+    options = data_point["choices"]
+    chat = []
+    system_prompt = {"role": "system", "content": "You are a helpful assistant with knowledge. Please answer the following question by choosing the correct option."}
+    user_Q = {"role": "user", "content": "Question: " + data_point['question'] + "Choose among the following choices: \n" + str(data_point["choices"]["label"]) + "\n with the choices being: " + str(data_point["choices"]["text"])}
+    llm_A = {"role": "assistant", "content": data_point["answerKey"]}
     chat.append(system_prompt)
     chat.append(user_Q)
     user_prompt = tokenizer.apply_chat_template(chat, tokenize = False) # only the user chat template

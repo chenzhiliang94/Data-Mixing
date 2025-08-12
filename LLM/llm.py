@@ -14,6 +14,7 @@ from lm_eval.models.huggingface import HFLM
 import datasets
 import os
 import sys
+import random
 
 import transformers
 from datasets import load_dataset, concatenate_datasets
@@ -29,7 +30,7 @@ from peft import (
 
 from transformers import LlamaForCausalLM, LlamaTokenizer
 
-# from LLM.tokenize_util import *
+from LLM.tokenize_util import *
 
 def get_tokenizer_and_model(model_id = "LLM/llama_8b_instruct"):
 
@@ -106,10 +107,13 @@ def get_best_N_set(initial_dataset, N):
     assert len(current_chosen_dataset) == N + 1
     return current_chosen_dataset, all_selected_idx
 
-def sample(dataset, num_datapoints, additional_info, method, data_domain):
+def sample(dataset, num_datapoints, additional_info, method, data_domain, seed):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
     if method == "remove_harmful" and additional_info == None:
         assert False, "bad combination!"
-    print("method to use: ", method)
+    # print("method to use: ", method)
     # if random sample, just set all weight to 1
     if method == "random":
         additional_info = [1] * len(dataset)
@@ -151,7 +155,7 @@ def sample(dataset, num_datapoints, additional_info, method, data_domain):
         embeddings = np.squeeze(embeddings)
         _, indices = get_best_N_set(embeddings, num_datapoints)
     else:
-        print("method is to randomly sample")
+        # print("method is to randomly sample")
         # influence sample; maybe use other methods
         normalized_influences = additional_info # normalized
         normalized_influences = np.asarray(normalized_influences).astype('float64')
@@ -165,7 +169,7 @@ def sample(dataset, num_datapoints, additional_info, method, data_domain):
     sampled_dataset = dataset.select(indices)
     return sampled_dataset
 
-def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets, val_datasets, data_domains, mixing_ratio, additional_info, total_number_datapoints, run_name, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100, lora_config=None, callback=[]):
+def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets, val_datasets, data_domains, mixing_ratio, additional_info, total_number_datapoints, run_name, seed=42, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100, lora_config=None, callback=[], fix_training_samples=False):
 
 #     '''
 #     model: llama base model
@@ -180,58 +184,55 @@ def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets,
     
     config = lora_config
     model = get_peft_model(model, config)
-    model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
+    # model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
     # apply tokenization to all data
-    print("tokenizing all data into correct format...")
+    # print("tokenizing all data into correct format...")
     tokenizing_method = {
         "wikitext":generate_and_tokenize_prompt_wikiQA,
         "triviaqa":generate_and_tokenize_prompt_trivialQA,
         "pubmedqa":generate_and_tokenize_prompt_pubmedQA,
         "truthfulqa_gen":generate_and_tokenize_prompt_truthfulQA,
         "commonsense_qa":generate_and_tokenize_prompt_commonsenseQA,
-        "hellaswag":generate_and_tokenize_prompt_hellaswag,
+        # "datologyai_hellaswag":generate_and_tokenize_prompt_datologyai_hellaswag, # not used because this dataset is not available anymore on huggingface
+        "rowan_hellaswag":generate_and_tokenize_prompt_rowan_hellaswag,
         "sciq":generate_and_tokenize_prompt_sciq,
         "gsm8k":generate_and_tokenize_prompt_gsm8k,
         "squadv2":generate_and_tokenize_prompt_squad,
         "headqa_en":generate_and_tokenize_prompt_headqa,
-        "mmlu":generate_and_tokenize_prompt_mmlu
+        "mmlu":generate_and_tokenize_prompt_mmlu,
+        "ai2_arc":generate_and_tokenize_prompt_ai2_arc,
     }
     
     # sample the correct amount of data from each domain
-    print("iterating through each data domain and sampling the sufficient datapoints")
-    print("mixing ratio: ", mixing_ratio)
-    print("ALL DATA DOMAINS: ", data_domains)
+    # print("iterating through each data domain and sampling the sufficient datapoints")
+    # print("mixing ratio: ", mixing_ratio)
+    # print("ALL DATA DOMAINS: ", data_domains)
     all_sampled_train_data = []
     all_sampled_val_data = []
     for train_dataset, val_dataset, data_domain, ratio, IF_values in zip(train_datasets, val_datasets, data_domains, mixing_ratio, additional_info):
         
-        print("doing sampling for domain: ", data_domain)
-        print("ratio: ", ratio)
+        # print("doing sampling for domain: ", data_domain)
+        # print("ratio: ", ratio)
         total_datapt = int(total_number_datapoints * ratio)
-        print("number of datapoints needed (ratio * total): ", total_datapt)
+        # print("number of datapoints needed (ratio * total): ", total_datapt)
         if total_datapt == 0:
             continue # skip if no data needed
-        if ratio == 1.0:
-            print("ratio is 1.0, don't have to sample")
-            sampled_train_data = train_dataset
-            sampled_val_data = val_dataset
-        else:
-            print("sampling...")
-            sampled_train_data = sample(train_dataset, total_datapt, additional_info=IF_values, method=method, data_domain=data_domain)
-            print("done sampling training")
-            sampled_val_data = sample(train_dataset, total_datapt, additional_info=None, method="random", data_domain=None)
-            print("done sampling validation")
+        print("sampling...")
+        sampled_train_data = sample(train_dataset, total_datapt, additional_info=IF_values, method=method, data_domain=data_domain, seed=seed)
+        print("done sampling training")
+        sampled_val_data = sample(val_dataset, total_datapt, additional_info=None, method="random", data_domain=None, seed=seed)
+        print("done sampling validation")
         
-        sampled_train_data = sampled_train_data.shuffle().map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
+        sampled_train_data = sampled_train_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
                                                                                    })
-        sampled_val_data = sampled_val_data.shuffle().map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
+        sampled_val_data = sampled_val_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
                                                                                    })
-        print("done mapping!")
+        # print("done mapping!")
         
         # drop columns
         
@@ -241,7 +242,6 @@ def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets,
         all_sampled_train_data.append(sampled_train_data)
         all_sampled_val_data.append(sampled_val_data)
     
-    print(all_sampled_train_data)
     combined_train_dataset = concatenate_datasets(all_sampled_train_data)
     combined_val_dataset = concatenate_datasets(all_sampled_val_data)
     print("length of training data: ", len(combined_train_dataset))
@@ -253,6 +253,8 @@ def train(model, tokenizer, train_dataset, val_dataset, output_dir, run_name, tr
     #     # keeps Trainer from trying its own DataParallelism when more than 1 gpu is available
     model.is_parallelizable = False
     model.model_parallel = False
+    
+    transformers.set_seed(42)
     model.train()
     trainer = transformers.Trainer(
         model=model,
@@ -346,7 +348,7 @@ def load_data(data_domain):
         dataset = datasets.load_dataset("tau/commonsense_qa", cache_dir = "./datasets")
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
-    elif data_domain == "hellaswag":
+    elif data_domain == "rowan_hellaswag":
         dataset = datasets.load_dataset("Rowan/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
@@ -366,13 +368,17 @@ def load_data(data_domain):
         dataset = datasets.load_dataset("dvilares/head_qa", "en", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
-    elif data_domain == "hellaswag":
+    elif data_domain == "datologyai_hellaswag":
         dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["eval"]
         val_dataset = dataset["eval"]
     elif data_domain == "mmlu":
         dataset = datasets.load_dataset("cais/mmlu", "all", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["test"]
+        val_dataset = dataset["validation"]
+    elif data_domain == "ai2_arc":
+        dataset = datasets.load_dataset("allenai/ai2_arc", "ARC-Challenge", cache_dir = "./datasets", trust_remote_code=True)
+        train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     else:
         assert False, "data_domain not valid, pls check"
