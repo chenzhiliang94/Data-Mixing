@@ -1,0 +1,176 @@
+{
+    "training_time": 17.4165,
+    "training_samples": 45,
+    "data_info": {
+        "commonsense_qa": {
+            "train_indices": [
+                4038,
+                5530,
+                8912,
+                9075,
+                8975,
+                8660,
+                5307
+            ],
+            "val_indices": [
+                506,
+                693,
+                1117,
+                1137,
+                1124,
+                1085,
+                665
+            ],
+            "train_size": 7,
+            "val_size": 7
+        },
+        "headqa_en": {
+            "train_indices": [
+                1101
+            ],
+            "val_indices": [
+                566
+            ],
+            "train_size": 1,
+            "val_size": 1
+        },
+        "rowan_hellaswag": {
+            "train_indices": [
+                16543,
+                22654,
+                36510,
+                37180,
+                36767,
+                35476
+            ],
+            "val_indices": [
+                4163,
+                5701,
+                9187,
+                9356,
+                9252,
+                8927
+            ],
+            "train_size": 6,
+            "val_size": 6
+        },
+        "pubmedqa": {
+            "train_indices": [
+                82916,
+                113543,
+                182989,
+                186345
+            ],
+            "val_indices": [
+                4671,
+                6397,
+                10310,
+                10499
+            ],
+            "train_size": 4,
+            "val_size": 4
+        },
+        "sciq": {
+            "train_indices": [
+                4841,
+                6630,
+                10685,
+                10881,
+                10760
+            ],
+            "val_indices": [
+                414,
+                567,
+                914,
+                931,
+                921
+            ],
+            "train_size": 5,
+            "val_size": 5
+        },
+        "triviaqa": {
+            "train_indices": [
+                57371,
+                78563,
+                126613,
+                128936,
+                127503,
+                123027
+            ],
+            "val_indices": [
+                7439,
+                10187,
+                16417,
+                16718,
+                16533,
+                15952
+            ],
+            "train_size": 6,
+            "val_size": 6
+        },
+        "truthfulqa_gen": {
+            "train_indices": [
+                338,
+                463,
+                747,
+                761,
+                752,
+                726,
+                445,
+                414
+            ],
+            "val_indices": [
+                338,
+                463,
+                747,
+                761,
+                752,
+                726,
+                445,
+                414
+            ],
+            "train_size": 8,
+            "val_size": 8
+        },
+        "wikitext": {
+            "train_indices": [
+                15222,
+                20845
+            ],
+            "val_indices": [
+                1558,
+                2134
+            ],
+            "train_size": 2,
+            "val_size": 2
+        },
+        "mmlu": {
+            "train_indices": [
+                5821,
+                7971,
+                12847,
+                13083
+            ],
+            "val_indices": [
+                634,
+                869,
+                1400,
+                1426
+            ],
+            "train_size": 4,
+            "val_size": 4
+        },
+        "ai2_arc": {
+            "train_indices": [
+                463,
+                635
+            ],
+            "val_indices": [
+                123,
+                169
+            ],
+            "train_size": 2,
+            "val_size": 2
+        }
+    }
+}

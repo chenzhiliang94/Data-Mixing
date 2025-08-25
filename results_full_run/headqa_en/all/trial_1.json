@@ -24,7 +24,8 @@
       0.05
     ],
     "performance": 0.49,
-    "max_performance_so_far": 0.49
+    "max_performance_so_far": 0.49,
+    "performance_after_500": 0.49
   },
   {
     "iteration": 2,
@@ -51,7 +52,8 @@
       0.01696716621518135
     ],
     "performance": 0.5,
-    "max_performance_so_far": 0.5
+    "max_performance_so_far": 0.5,
+    "performance_after_500": 0.5
   },
   {
     "iteration": 3,
@@ -78,7 +80,8 @@
       0.04038355126976967
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.52
+    "max_performance_so_far": 0.52,
+    "performance_after_500": 0.53
   },
   {
     "iteration": 4,
@@ -105,7 +108,8 @@
       0.057284917682409286
     ],
     "performance": 0.5,
-    "max_performance_so_far": 0.52
+    "max_performance_so_far": 0.52,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 5,
@@ -132,7 +136,8 @@
       0.03974407911300659
     ],
     "performance": 0.49,
-    "max_performance_so_far": 0.52
+    "max_performance_so_far": 0.52,
+    "performance_after_500": 0.49
   },
   {
     "iteration": 6,
@@ -159,7 +164,8 @@
       0.03644833713769913
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 7,
@@ -186,7 +192,8 @@
       0.035016074776649475
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.54
   },
   {
     "iteration": 8,
@@ -213,7 +220,8 @@
       0.04723832383751869
     ],
     "performance": 0.51,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 9,
@@ -240,7 +248,8 @@
       0.02356857620179653
     ],
     "performance": 0.51,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 10,
@@ -267,7 +276,8 @@
       0.0380583293735981
     ],
     "performance": 0.45,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.46
   },
   {
     "iteration": 11,
@@ -294,7 +304,8 @@
       0.026573188602924347
     ],
     "performance": 0.51,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 12,
@@ -321,7 +332,8 @@
       0.04153479263186455
     ],
     "performance": 0.5,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 13,
@@ -348,7 +360,8 @@
       0.033974435180425644
     ],
     "performance": 0.5,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.5
   },
   {
     "iteration": 14,
@@ -375,7 +388,8 @@
       0.03137892484664917
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 15,
@@ -402,7 +416,8 @@
       0.03045162744820118
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 16,
@@ -429,7 +444,8 @@
       0.041633982211351395
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 17,
@@ -456,7 +472,8 @@
       0.052723295986652374
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 18,
@@ -483,7 +500,8 @@
       0.010975276120007038
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 19,
@@ -510,7 +528,8 @@
       0.05332588776946068
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.5
   },
   {
     "iteration": 20,
@@ -537,7 +556,8 @@
       0.02026933804154396
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 21,
@@ -564,7 +584,8 @@
       0.07639365643262863
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 22,
@@ -591,7 +612,8 @@
       0.014476927928626537
     ],
     "performance": 0.51,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.48
   },
   {
     "iteration": 23,
@@ -618,7 +640,8 @@
       0.032139405608177185
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 24,
@@ -645,7 +668,8 @@
       0.05687030777335167
     ],
     "performance": 0.51,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 25,
@@ -672,7 +696,8 @@
       1.426659857467345e-19
     ],
     "performance": 0.51,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.5
   },
   {
     "iteration": 26,
@@ -699,7 +724,8 @@
       0.04639742895960808
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.53
   },
   {
     "iteration": 27,
@@ -726,7 +752,8 @@
       0.07818988710641861
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 28,
@@ -753,7 +780,8 @@
       1.4323016169858687e-19
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 29,
@@ -780,7 +808,8 @@
       0.0
     ],
     "performance": 0.5,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 30,
@@ -834,7 +863,8 @@
       0.034029364585876465
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 32,
@@ -861,7 +891,8 @@
       0.07107671350240707
     ],
     "performance": 0.5,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 33,
@@ -888,7 +919,8 @@
       0.0038422048091888428
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 34,
@@ -915,7 +947,8 @@
       0.044654715806245804
     ],
     "performance": 0.51,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 35,
@@ -942,7 +975,8 @@
       0.04234891012310982
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.53
   },
   {
     "iteration": 36,
@@ -996,7 +1030,8 @@
       0.03862987831234932
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.53
+    "max_performance_so_far": 0.53,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 38,
@@ -1023,7 +1058,8 @@
       0.07211065292358398
     ],
     "performance": 0.56,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.56
   },
   {
     "iteration": 39,
@@ -1050,7 +1086,8 @@
       0.07721144706010818
     ],
     "performance": 0.56,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 40,
@@ -1077,7 +1114,8 @@
       0.07112624496221542
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.53
   },
   {
     "iteration": 41,
@@ -1104,7 +1142,8 @@
       0.05207685008645058
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 42,
@@ -1131,7 +1170,8 @@
       0.054749343544244766
     ],
     "performance": 0.49,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.48
   },
   {
     "iteration": 43,
@@ -1158,7 +1198,8 @@
       0.07153606414794922
     ],
     "performance": 0.54,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.53
   },
   {
     "iteration": 44,
@@ -1185,7 +1226,8 @@
       0.06876133382320404
     ],
     "performance": 0.51,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.5
   },
   {
     "iteration": 45,
@@ -1212,7 +1254,8 @@
       0.05429362505674362
     ],
     "performance": 0.5,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 46,
@@ -1239,7 +1282,8 @@
       0.09098231792449951
     ],
     "performance": 0.48,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.5
   },
   {
     "iteration": 47,
@@ -1266,7 +1310,8 @@
       9.049475842518943e-18
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.51
   },
   {
     "iteration": 48,
@@ -1293,7 +1338,8 @@
       0.0656283050775528
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 49,
@@ -1320,7 +1366,8 @@
       0.03255492448806763
     ],
     "performance": 0.49,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.49
   },
   {
     "iteration": 50,
@@ -1347,7 +1394,8 @@
       0.08710665255784988
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.53
   },
   {
     "iteration": 51,
@@ -1374,7 +1422,8 @@
       0.09520937502384186
     ],
     "performance": 0.49,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.5
   },
   {
     "iteration": 52,
@@ -1401,7 +1450,8 @@
       0.06489480286836624
     ],
     "performance": 0.54,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 53,
@@ -1428,7 +1478,8 @@
       0.08041300624608994
     ],
     "performance": 0.54,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.55
   },
   {
     "iteration": 54,
@@ -1455,7 +1506,8 @@
       0.07506676763296127
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 55,
@@ -1482,7 +1534,8 @@
       0.06031528115272522
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 56,
@@ -1509,7 +1562,8 @@
       0.09762301295995712
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.53
   },
   {
     "iteration": 57,
@@ -1536,7 +1590,8 @@
       0.059509843587875366
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.53
   },
   {
     "iteration": 58,
@@ -1563,7 +1618,8 @@
       0.10000000149011612
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 59,
@@ -1590,7 +1646,8 @@
       0.05668593570590019
     ],
     "performance": 0.52,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.52
   },
   {
     "iteration": 60,
@@ -1617,6 +1674,7 @@
       0.0
     ],
     "performance": 0.53,
-    "max_performance_so_far": 0.56
+    "max_performance_so_far": 0.56,
+    "performance_after_500": 0.51
   }
 ]

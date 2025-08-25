@@ -24,7 +24,8 @@
       0.05
     ],
     "performance": 0.98,
-    "max_performance_so_far": 0.98
+    "max_performance_so_far": 0.98,
+    "performance_after_500": 0.98
   },
   {
     "iteration": 2,
@@ -1266,7 +1267,8 @@
       0.045628082007169724
     ],
     "performance": 0.99,
-    "max_performance_so_far": 0.99
+    "max_performance_so_far": 0.99,
+    "performance_after_500": 0.99
   },
   {
     "iteration": 48,
