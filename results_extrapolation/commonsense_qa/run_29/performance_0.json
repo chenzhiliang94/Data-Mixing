@@ -1,0 +1,10 @@
+[
+  {
+    "seed": null,
+    "evaluation_task": [
+      "commonsense_qa"
+    ],
+    "params": null,
+    "performance": 0.72
+  }
+]

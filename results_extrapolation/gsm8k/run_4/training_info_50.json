@@ -1,0 +1,180 @@
+{
+    "training_time": 12.7266,
+    "training_samples": 47,
+    "data_info": {
+        "commonsense_qa": {
+            "train_indices": [
+                4517,
+                1529,
+                9268,
+                6686,
+                1920,
+                6551
+            ],
+            "val_indices": [
+                566,
+                191,
+                1161,
+                838,
+                240,
+                821
+            ],
+            "train_size": 6,
+            "val_size": 6
+        },
+        "headqa_en": {
+            "train_indices": [
+                1232
+            ],
+            "val_indices": [
+                633
+            ],
+            "train_size": 1,
+            "val_size": 1
+        },
+        "rowan_hellaswag": {
+            "train_indices": [
+                18506,
+                6266,
+                37969,
+                27392,
+                7866
+            ],
+            "val_indices": [
+                4657,
+                1576,
+                9554,
+                6893,
+                1979
+            ],
+            "train_size": 5,
+            "val_size": 5
+        },
+        "pubmedqa": {
+            "train_indices": [
+                92751,
+                31407,
+                190300
+            ],
+            "val_indices": [
+                5226,
+                1769,
+                10722
+            ],
+            "train_size": 3,
+            "val_size": 3
+        },
+        "sciq": {
+            "train_indices": [
+                5416,
+                1834,
+                11112,
+                8017,
+                2302,
+                7854,
+                344
+            ],
+            "val_indices": [
+                463,
+                157,
+                951,
+                686,
+                197,
+                672,
+                29
+            ],
+            "train_size": 7,
+            "val_size": 7
+        },
+        "triviaqa": {
+            "train_indices": [
+                64176,
+                21731,
+                131672,
+                94993,
+                27280,
+                93068,
+                4080
+            ],
+            "val_indices": [
+                8321,
+                2817,
+                17073,
+                12317,
+                3537,
+                12068,
+                529
+            ],
+            "train_size": 7,
+            "val_size": 7
+        },
+        "truthfulqa_gen": {
+            "train_indices": [
+                378,
+                128,
+                777,
+                560,
+                161,
+                549,
+                24
+            ],
+            "val_indices": [
+                378,
+                128,
+                777,
+                560,
+                161,
+                549,
+                24
+            ],
+            "train_size": 7,
+            "val_size": 7
+        },
+        "wikitext": {
+            "train_indices": [
+                17028
+            ],
+            "val_indices": [
+                1743
+            ],
+            "train_size": 1,
+            "val_size": 1
+        },
+        "mmlu": {
+            "train_indices": [
+                6512,
+                2205,
+                13360,
+                9639,
+                2768,
+                9443
+            ],
+            "val_indices": [
+                710,
+                240,
+                1456,
+                1050,
+                301,
+                1029
+            ],
+            "train_size": 6,
+            "val_size": 6
+        },
+        "ai2_arc": {
+            "train_indices": [
+                518,
+                175,
+                1064,
+                768
+            ],
+            "val_indices": [
+                138,
+                46,
+                284,
+                205
+            ],
+            "train_size": 4,
+            "val_size": 4
+        }
+    }
+}

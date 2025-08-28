@@ -1,0 +1,160 @@
+{
+    "training_time": 18.2177,
+    "training_samples": 45,
+    "data_info": {
+        "gsm8k": {
+            "train_indices": [
+                1960,
+                1320,
+                1959,
+                2034,
+                4050,
+                412,
+                1430
+            ],
+            "val_indices": [
+                346,
+                232,
+                345,
+                359,
+                714,
+                72,
+                252
+            ],
+            "train_size": 7,
+            "val_size": 7
+        },
+        "headqa_en": {
+            "train_indices": [
+                697
+            ],
+            "val_indices": [
+                358
+            ],
+            "train_size": 1,
+            "val_size": 1
+        },
+        "pubmedqa": {
+            "train_indices": [
+                52479,
+                35328,
+                52432,
+                54459,
+                108408,
+                11049,
+                38289,
+                83863
+            ],
+            "val_indices": [
+                2956,
+                1990,
+                2954,
+                3068,
+                6108,
+                622,
+                2157,
+                4725
+            ],
+            "train_size": 8,
+            "val_size": 8
+        },
+        "sciq": {
+            "train_indices": [
+                3064,
+                2063,
+                3061,
+                3180,
+                6330
+            ],
+            "val_indices": [
+                262,
+                176,
+                262,
+                272,
+                542
+            ],
+            "train_size": 5,
+            "val_size": 5
+        },
+        "truthfulqa_gen": {
+            "train_indices": [
+                214,
+                144
+            ],
+            "val_indices": [
+                214,
+                144
+            ],
+            "train_size": 2,
+            "val_size": 2
+        },
+        "wikitext": {
+            "train_indices": [
+                9634,
+                6485,
+                9626,
+                9998,
+                19902
+            ],
+            "val_indices": [
+                986,
+                664,
+                985,
+                1023,
+                2038
+            ],
+            "train_size": 5,
+            "val_size": 5
+        },
+        "mmlu": {
+            "train_indices": [
+                3684,
+                2480,
+                3681,
+                3823,
+                7611,
+                775,
+                2688
+            ],
+            "val_indices": [
+                401,
+                270,
+                401,
+                416,
+                829,
+                84,
+                293
+            ],
+            "train_size": 7,
+            "val_size": 7
+        },
+        "ai2_arc": {
+            "train_indices": [
+                293,
+                197,
+                293,
+                304,
+                606,
+                61,
+                214,
+                469,
+                782,
+                1052
+            ],
+            "val_indices": [
+                78,
+                52,
+                78,
+                81,
+                162,
+                16,
+                57,
+                125,
+                209,
+                281
+            ],
+            "train_size": 10,
+            "val_size": 10
+        }
+    }
+}

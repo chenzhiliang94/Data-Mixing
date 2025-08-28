@@ -1,0 +1,902 @@
+[
+  {
+    "iteration": 1,
+    "model_params": [
+      16,
+      1,
+      1,
+      1,
+      1,
+      1,
+      72,
+      0.05
+    ],
+    "performance": -16.349187746585002,
+    "max_performance_so_far": -16.349187746585002
+  },
+  {
+    "iteration": 2,
+    "model_params": [
+      32,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0.08692454546689987
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -16.349187746585002
+  },
+  {
+    "iteration": 3,
+    "model_params": [
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      118,
+      0.08714673668146133
+    ],
+    "performance": -16.183247949101222,
+    "max_performance_so_far": -16.183247949101222
+  },
+  {
+    "iteration": 4,
+    "model_params": [
+      16,
+      1,
+      1,
+      1,
+      1,
+      1,
+      124,
+      0.0
+    ],
+    "performance": -16.14921872208425,
+    "max_performance_so_far": -16.14921872208425
+  },
+  {
+    "iteration": 5,
+    "model_params": [
+      4,
+      1,
+      1,
+      1,
+      1,
+      1,
+      69,
+      0.0
+    ],
+    "performance": -16.05135042803731,
+    "max_performance_so_far": -16.05135042803731
+  },
+  {
+    "iteration": 6,
+    "model_params": [
+      9,
+      1,
+      1,
+      1,
+      1,
+      1,
+      96,
+      0.0
+    ],
+    "performance": -16.12247441582943,
+    "max_performance_so_far": -16.05135042803731
+  },
+  {
+    "iteration": 7,
+    "model_params": [
+      9,
+      1,
+      1,
+      1,
+      1,
+      1,
+      95,
+      0.0005686702788807452
+    ],
+    "performance": -16.157987122568496,
+    "max_performance_so_far": -16.05135042803731
+  },
+  {
+    "iteration": 8,
+    "model_params": [
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      128,
+      0.10000000149011612
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -16.05135042803731
+  },
+  {
+    "iteration": 9,
+    "model_params": [
+      10,
+      1,
+      1,
+      1,
+      1,
+      1,
+      89,
+      0.0
+    ],
+    "performance": -16.04589748026107,
+    "max_performance_so_far": -16.04589748026107
+  },
+  {
+    "iteration": 10,
+    "model_params": [
+      10,
+      1,
+      1,
+      1,
+      1,
+      1,
+      89,
+      0.0
+    ],
+    "performance": -16.04589748026107,
+    "max_performance_so_far": -16.04589748026107
+  },
+  {
+    "iteration": 11,
+    "model_params": [
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      60,
+      0.0
+    ],
+    "performance": -16.01998807498416,
+    "max_performance_so_far": -16.01998807498416
+  },
+  {
+    "iteration": 12,
+    "model_params": [
+      17,
+      1,
+      1,
+      1,
+      1,
+      1,
+      62,
+      0.0
+    ],
+    "performance": -16.007579690637687,
+    "max_performance_so_far": -16.007579690637687
+  },
+  {
+    "iteration": 13,
+    "model_params": [
+      17,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -16.197336088448655,
+    "max_performance_so_far": -16.007579690637687
+  },
+  {
+    "iteration": 14,
+    "model_params": [
+      14,
+      1,
+      1,
+      1,
+      1,
+      1,
+      76,
+      0.0
+    ],
+    "performance": -16.182577391052547,
+    "max_performance_so_far": -16.007579690637687
+  },
+  {
+    "iteration": 15,
+    "model_params": [
+      25,
+      1,
+      1,
+      1,
+      1,
+      1,
+      103,
+      0.0
+    ],
+    "performance": -16.022112398463246,
+    "max_performance_so_far": -16.007579690637687
+  },
+  {
+    "iteration": 16,
+    "model_params": [
+      27,
+      1,
+      1,
+      1,
+      1,
+      1,
+      100,
+      0.0
+    ],
+    "performance": -16.168100116982753,
+    "max_performance_so_far": -16.007579690637687
+  },
+  {
+    "iteration": 17,
+    "model_params": [
+      5,
+      1,
+      1,
+      1,
+      1,
+      1,
+      25,
+      0.0
+    ],
+    "performance": -16.136242197582757,
+    "max_performance_so_far": -16.007579690637687
+  },
+  {
+    "iteration": 18,
+    "model_params": [
+      13,
+      1,
+      1,
+      1,
+      1,
+      1,
+      25,
+      0.0
+    ],
+    "performance": -16.263916972830824,
+    "max_performance_so_far": -16.007579690637687
+  },
+  {
+    "iteration": 19,
+    "model_params": [
+      13,
+      1,
+      1,
+      1,
+      1,
+      1,
+      14,
+      0.0
+    ],
+    "performance": -16.314201180986636,
+    "max_performance_so_far": -16.007579690637687
+  },
+  {
+    "iteration": 20,
+    "model_params": [
+      29,
+      1,
+      1,
+      1,
+      1,
+      1,
+      10,
+      0.0
+    ],
+    "performance": -15.839789872651709,
+    "max_performance_so_far": -15.839789872651709
+  },
+  {
+    "iteration": 21,
+    "model_params": [
+      32,
+      1,
+      1,
+      1,
+      1,
+      1,
+      30,
+      0.0
+    ],
+    "performance": -15.499253250231046,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 22,
+    "model_params": [
+      22,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0.0
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 23,
+    "model_params": [
+      11,
+      1,
+      1,
+      1,
+      1,
+      1,
+      87,
+      0.0
+    ],
+    "performance": -16.287116163795847,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 24,
+    "model_params": [
+      27,
+      1,
+      1,
+      1,
+      1,
+      1,
+      41,
+      0.0
+    ],
+    "performance": -15.913075199858016,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 25,
+    "model_params": [
+      18,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0.0
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 26,
+    "model_params": [
+      25,
+      1,
+      1,
+      1,
+      1,
+      1,
+      66,
+      0.10000000149011612
+    ],
+    "performance": -16.25664032392073,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 27,
+    "model_params": [
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      63,
+      0.0
+    ],
+    "performance": -15.737209309239018,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 28,
+    "model_params": [
+      28,
+      1,
+      1,
+      1,
+      1,
+      1,
+      65,
+      0.0
+    ],
+    "performance": -16.129156337285426,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 29,
+    "model_params": [
+      6,
+      1,
+      1,
+      1,
+      1,
+      1,
+      58,
+      0.0
+    ],
+    "performance": -16.09290678191124,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 30,
+    "model_params": [
+      16,
+      1,
+      1,
+      1,
+      1,
+      1,
+      28,
+      0.0
+    ],
+    "performance": -16.299943853694785,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 31,
+    "model_params": [
+      13,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -16.04516612819934,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 32,
+    "model_params": [
+      3,
+      1,
+      1,
+      1,
+      1,
+      1,
+      110,
+      0.0
+    ],
+    "performance": -15.908657987042163,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 33,
+    "model_params": [
+      20,
+      1,
+      0,
+      0,
+      1,
+      1,
+      67,
+      0.0
+    ],
+    "performance": -16.16662630675873,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 34,
+    "model_params": [
+      18,
+      1,
+      0,
+      1,
+      1,
+      1,
+      104,
+      0.0
+    ],
+    "performance": -16.30649662201178,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 35,
+    "model_params": [
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      53,
+      0.0
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 36,
+    "model_params": [
+      20,
+      1,
+      1,
+      1,
+      1,
+      1,
+      125,
+      0.0
+    ],
+    "performance": -15.927456113016534,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 37,
+    "model_params": [
+      17,
+      1,
+      0,
+      1,
+      1,
+      1,
+      57,
+      0.0
+    ],
+    "performance": -16.317919594467654,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 38,
+    "model_params": [
+      27,
+      1,
+      0,
+      1,
+      1,
+      1,
+      70,
+      0.0
+    ],
+    "performance": -16.163946995989154,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 39,
+    "model_params": [
+      7,
+      1,
+      0,
+      1,
+      1,
+      1,
+      52,
+      0.10000000149011612
+    ],
+    "performance": -16.46087216913932,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 40,
+    "model_params": [
+      29,
+      1,
+      1,
+      1,
+      1,
+      1,
+      84,
+      0.0
+    ],
+    "performance": -15.85916375160584,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 41,
+    "model_params": [
+      9,
+      1,
+      1,
+      1,
+      1,
+      1,
+      102,
+      0.0
+    ],
+    "performance": -16.114326220180565,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 42,
+    "model_params": [
+      24,
+      1,
+      0,
+      1,
+      1,
+      1,
+      118,
+      0.0
+    ],
+    "performance": -16.131763037210572,
+    "max_performance_so_far": -15.499253250231046
+  },
+  {
+    "iteration": 43,
+    "model_params": [
+      32,
+      1,
+      1,
+      1,
+      1,
+      1,
+      95,
+      0.0
+    ],
+    "performance": -15.37522381193033,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 44,
+    "model_params": [
+      24,
+      1,
+      1,
+      1,
+      1,
+      1,
+      113,
+      0.0
+    ],
+    "performance": -16.018063150119538,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 45,
+    "model_params": [
+      32,
+      1,
+      0,
+      1,
+      1,
+      1,
+      35,
+      0.0
+    ],
+    "performance": -15.518789338448904,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 46,
+    "model_params": [
+      12,
+      1,
+      1,
+      1,
+      1,
+      1,
+      47,
+      0.10000000149011612
+    ],
+    "performance": -16.239808717370035,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 47,
+    "model_params": [
+      32,
+      1,
+      1,
+      1,
+      1,
+      1,
+      54,
+      0.0
+    ],
+    "performance": -15.555485898523516,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 48,
+    "model_params": [
+      32,
+      1,
+      0,
+      1,
+      1,
+      1,
+      12,
+      0.0
+    ],
+    "performance": -15.64637551890528,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 49,
+    "model_params": [
+      3,
+      1,
+      0,
+      1,
+      1,
+      1,
+      38,
+      0.0
+    ],
+    "performance": -16.309199561586144,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 50,
+    "model_params": [
+      9,
+      1,
+      0,
+      1,
+      1,
+      1,
+      0,
+      0.0
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 51,
+    "model_params": [
+      16,
+      1,
+      1,
+      0,
+      1,
+      1,
+      61,
+      0.0
+    ],
+    "performance": -15.966309833154881,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 52,
+    "model_params": [
+      19,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -16.0221787881108,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 53,
+    "model_params": [
+      16,
+      1,
+      1,
+      1,
+      1,
+      1,
+      71,
+      0.0
+    ],
+    "performance": -15.967368400813024,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 54,
+    "model_params": [
+      20,
+      1,
+      0,
+      1,
+      1,
+      1,
+      68,
+      0.0
+    ],
+    "performance": -16.309469880184285,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 55,
+    "model_params": [
+      21,
+      1,
+      0,
+      0,
+      0,
+      1,
+      79,
+      0.0
+    ],
+    "performance": -16.413672128648017,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 56,
+    "model_params": [
+      21,
+      1,
+      0,
+      0,
+      1,
+      1,
+      99,
+      0.0
+    ],
+    "performance": -16.21304874814906,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 57,
+    "model_params": [
+      18,
+      0,
+      0,
+      1,
+      0,
+      1,
+      93,
+      0.0
+    ],
+    "performance": -16.40524080887525,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 58,
+    "model_params": [
+      21,
+      0,
+      1,
+      1,
+      1,
+      1,
+      74,
+      0.0
+    ],
+    "performance": -15.985838460525487,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 59,
+    "model_params": [
+      21,
+      0,
+      0,
+      1,
+      1,
+      1,
+      52,
+      0.0
+    ],
+    "performance": -16.20680214882425,
+    "max_performance_so_far": -15.37522381193033
+  },
+  {
+    "iteration": 60,
+    "model_params": [
+      32,
+      1,
+      1,
+      1,
+      1,
+      1,
+      23,
+      0.0
+    ],
+    "performance": -15.930756319401693,
+    "max_performance_so_far": -15.37522381193033
+  }
+]
