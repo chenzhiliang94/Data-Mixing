@@ -1,0 +1,902 @@
+[
+  {
+    "iteration": 1,
+    "model_params": [
+      14,
+      1,
+      1,
+      1,
+      1,
+      1,
+      72,
+      0.05
+    ],
+    "performance": -9.418649320933579,
+    "max_performance_so_far": -9.418649320933579
+  },
+  {
+    "iteration": 2,
+    "model_params": [
+      28,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0.08692454546689987
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -9.418649320933579
+  },
+  {
+    "iteration": 3,
+    "model_params": [
+      3,
+      1,
+      1,
+      1,
+      1,
+      1,
+      122,
+      0.009055139496922493
+    ],
+    "performance": -9.476430103450541,
+    "max_performance_so_far": -9.418649320933579
+  },
+  {
+    "iteration": 4,
+    "model_params": [
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      56,
+      0.10000000149011612
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -9.418649320933579
+  },
+  {
+    "iteration": 5,
+    "model_params": [
+      15,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -9.423411853127996,
+    "max_performance_so_far": -9.418649320933579
+  },
+  {
+    "iteration": 6,
+    "model_params": [
+      11,
+      1,
+      1,
+      1,
+      1,
+      1,
+      112,
+      0.0
+    ],
+    "performance": -9.446242924071678,
+    "max_performance_so_far": -9.418649320933579
+  },
+  {
+    "iteration": 7,
+    "model_params": [
+      11,
+      1,
+      1,
+      1,
+      1,
+      1,
+      110,
+      0.0
+    ],
+    "performance": -9.389968996173032,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 8,
+    "model_params": [
+      11,
+      1,
+      1,
+      1,
+      1,
+      1,
+      110,
+      0.0
+    ],
+    "performance": -9.389968996173032,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 9,
+    "model_params": [
+      11,
+      1,
+      1,
+      1,
+      1,
+      1,
+      110,
+      0.0
+    ],
+    "performance": -9.389968996173032,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 10,
+    "model_params": [
+      12,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -9.411198058866708,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 11,
+    "model_params": [
+      20,
+      1,
+      1,
+      1,
+      1,
+      1,
+      92,
+      0.0
+    ],
+    "performance": -9.481654014453643,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 12,
+    "model_params": [
+      6,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.10000000149011612
+    ],
+    "performance": -9.61000568817677,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 13,
+    "model_params": [
+      17,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.10000000149011612
+    ],
+    "performance": -9.440490857897874,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 14,
+    "model_params": [
+      17,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.10000000149011612
+    ],
+    "performance": -9.440490857897874,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 15,
+    "model_params": [
+      18,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.10000000149011612
+    ],
+    "performance": -9.423841380104049,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 16,
+    "model_params": [
+      17,
+      1,
+      1,
+      1,
+      1,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -9.433452281629155,
+    "max_performance_so_far": -9.389968996173032
+  },
+  {
+    "iteration": 17,
+    "model_params": [
+      14,
+      1,
+      0,
+      1,
+      1,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -9.367273936345143,
+    "max_performance_so_far": -9.367273936345143
+  },
+  {
+    "iteration": 18,
+    "model_params": [
+      24,
+      1,
+      1,
+      1,
+      1,
+      1,
+      126,
+      0.10000000149011612
+    ],
+    "performance": -9.38464005223502,
+    "max_performance_so_far": -9.367273936345143
+  },
+  {
+    "iteration": 19,
+    "model_params": [
+      16,
+      1,
+      1,
+      0,
+      1,
+      1,
+      128,
+      0.10000000149011612
+    ],
+    "performance": -9.444090380248278,
+    "max_performance_so_far": -9.367273936345143
+  },
+  {
+    "iteration": 20,
+    "model_params": [
+      17,
+      1,
+      1,
+      1,
+      1,
+      1,
+      98,
+      0.10000000149011612
+    ],
+    "performance": -9.416932277015341,
+    "max_performance_so_far": -9.367273936345143
+  },
+  {
+    "iteration": 21,
+    "model_params": [
+      24,
+      1,
+      1,
+      0,
+      1,
+      1,
+      121,
+      0.10000000149011612
+    ],
+    "performance": -9.385962281663613,
+    "max_performance_so_far": -9.367273936345143
+  },
+  {
+    "iteration": 22,
+    "model_params": [
+      22,
+      1,
+      0,
+      0,
+      1,
+      1,
+      109,
+      0.0
+    ],
+    "performance": -9.317105296709238,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 23,
+    "model_params": [
+      22,
+      0,
+      1,
+      0,
+      1,
+      1,
+      123,
+      0.0
+    ],
+    "performance": -9.388529494147258,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 24,
+    "model_params": [
+      22,
+      1,
+      0,
+      0,
+      0,
+      0,
+      122,
+      0.0
+    ],
+    "performance": -9.430247559205828,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 25,
+    "model_params": [
+      25,
+      1,
+      1,
+      0,
+      1,
+      0,
+      106,
+      0.0
+    ],
+    "performance": -9.383784591274386,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 26,
+    "model_params": [
+      20,
+      1,
+      1,
+      1,
+      1,
+      0,
+      94,
+      0.0
+    ],
+    "performance": -9.414084235506794,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 27,
+    "model_params": [
+      23,
+      1,
+      1,
+      0,
+      1,
+      0,
+      116,
+      0.10000000149011612
+    ],
+    "performance": -9.382190531195716,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 28,
+    "model_params": [
+      21,
+      0,
+      1,
+      1,
+      0,
+      0,
+      118,
+      0.10000000149011612
+    ],
+    "performance": -9.366226006086546,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 29,
+    "model_params": [
+      19,
+      1,
+      0,
+      1,
+      1,
+      0,
+      113,
+      0.10000000149011612
+    ],
+    "performance": -9.342891465142268,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 30,
+    "model_params": [
+      28,
+      1,
+      1,
+      1,
+      1,
+      0,
+      99,
+      0.10000000149011612
+    ],
+    "performance": -9.433843175934886,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 31,
+    "model_params": [
+      20,
+      1,
+      0,
+      0,
+      1,
+      0,
+      101,
+      0.10000000149011612
+    ],
+    "performance": -9.321005371605176,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 32,
+    "model_params": [
+      21,
+      1,
+      1,
+      1,
+      0,
+      0,
+      94,
+      0.10000000149011612
+    ],
+    "performance": -9.36777853717407,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 33,
+    "model_params": [
+      21,
+      0,
+      0,
+      1,
+      0,
+      0,
+      112,
+      0.10000000149011612
+    ],
+    "performance": -9.35083107790232,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 34,
+    "model_params": [
+      23,
+      1,
+      1,
+      1,
+      0,
+      1,
+      102,
+      0.10000000149011612
+    ],
+    "performance": -9.410808102868632,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 35,
+    "model_params": [
+      21,
+      1,
+      0,
+      1,
+      0,
+      1,
+      98,
+      0.10000000149011612
+    ],
+    "performance": -9.327766792422098,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 36,
+    "model_params": [
+      23,
+      1,
+      1,
+      0,
+      0,
+      1,
+      91,
+      0.10000000149011612
+    ],
+    "performance": -9.37678829367407,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 37,
+    "model_params": [
+      25,
+      0,
+      1,
+      0,
+      0,
+      0,
+      101,
+      0.10000000149011612
+    ],
+    "performance": -9.529549210369161,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 38,
+    "model_params": [
+      28,
+      1,
+      0,
+      0,
+      0,
+      0,
+      104,
+      0.10000000149011612
+    ],
+    "performance": -9.325022996318241,
+    "max_performance_so_far": -9.317105296709238
+  },
+  {
+    "iteration": 39,
+    "model_params": [
+      28,
+      0,
+      0,
+      1,
+      0,
+      1,
+      102,
+      0.0
+    ],
+    "performance": -9.286117298422777,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 40,
+    "model_params": [
+      20,
+      1,
+      0,
+      1,
+      1,
+      1,
+      73,
+      0.10000000149011612
+    ],
+    "performance": -9.365411030269703,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 41,
+    "model_params": [
+      22,
+      0,
+      0,
+      0,
+      0,
+      1,
+      93,
+      0.0
+    ],
+    "performance": -9.910265875515153,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 42,
+    "model_params": [
+      23,
+      0,
+      0,
+      1,
+      0,
+      0,
+      84,
+      0.0
+    ],
+    "performance": -9.393237874208094,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 43,
+    "model_params": [
+      21,
+      1,
+      1,
+      0,
+      1,
+      1,
+      71,
+      0.10000000149011612
+    ],
+    "performance": -9.369564266070292,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 44,
+    "model_params": [
+      28,
+      0,
+      0,
+      1,
+      0,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.320117092208605,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 45,
+    "model_params": [
+      28,
+      0,
+      1,
+      1,
+      0,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.356257129398323,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 46,
+    "model_params": [
+      28,
+      0,
+      1,
+      0,
+      0,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.423607090235572,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 47,
+    "model_params": [
+      28,
+      0,
+      0,
+      1,
+      1,
+      0,
+      128,
+      0.10000000149011612
+    ],
+    "performance": -9.357769232960893,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 48,
+    "model_params": [
+      28,
+      0,
+      0,
+      1,
+      1,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -9.319692292856669,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 49,
+    "model_params": [
+      19,
+      1,
+      1,
+      1,
+      0,
+      1,
+      73,
+      0.0
+    ],
+    "performance": -9.472504246430475,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 50,
+    "model_params": [
+      28,
+      1,
+      0,
+      1,
+      0,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -9.302600546091368,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 51,
+    "model_params": [
+      28,
+      0,
+      0,
+      0,
+      0,
+      1,
+      128,
+      0.0
+    ],
+    "performance": -9.59870340555496,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 52,
+    "model_params": [
+      28,
+      0,
+      0,
+      1,
+      0,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.320117092208605,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 53,
+    "model_params": [
+      28,
+      0,
+      1,
+      1,
+      1,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.45289934368066,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 54,
+    "model_params": [
+      19,
+      0,
+      1,
+      1,
+      1,
+      1,
+      77,
+      0.0
+    ],
+    "performance": -9.452546827436596,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 55,
+    "model_params": [
+      5,
+      1,
+      1,
+      1,
+      0,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.868509515723998,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 56,
+    "model_params": [
+      5,
+      0,
+      0,
+      1,
+      1,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.506201666771203,
+    "max_performance_so_far": -9.286117298422777
+  },
+  {
+    "iteration": 57,
+    "model_params": [
+      4,
+      1,
+      0,
+      0,
+      1,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.031522785649347,
+    "max_performance_so_far": -9.031522785649347
+  },
+  {
+    "iteration": 58,
+    "model_params": [
+      4,
+      0,
+      1,
+      0,
+      1,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.739287687357843,
+    "max_performance_so_far": -9.031522785649347
+  },
+  {
+    "iteration": 59,
+    "model_params": [
+      9,
+      0,
+      0,
+      0,
+      0,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -1000000.0,
+    "max_performance_so_far": -9.031522785649347
+  },
+  {
+    "iteration": 60,
+    "model_params": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      128,
+      0.0
+    ],
+    "performance": -9.49116656380456,
+    "max_performance_so_far": -9.031522785649347
+  }
+]
