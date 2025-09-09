@@ -371,7 +371,7 @@ def load_data(data_domain):
     elif data_domain == "datologyai_hellaswag":
         dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["eval"]
-        val_dataset = dataset["eval"]
+        val_dataload_set = dataset["eval"]
     elif data_domain == "mmlu":
         dataset = datasets.load_dataset("cais/mmlu", "all", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["test"]

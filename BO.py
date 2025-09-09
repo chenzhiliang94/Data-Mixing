@@ -35,6 +35,7 @@ from peft import (
 lora_alpha = 16
 lora_dropout= 0.05
 lora_r=16
+weight=1.1
 lora_target_modules = [
     "q_proj",
     "v_proj",
@@ -172,7 +173,7 @@ def run_BO_for_LLM(data_domains : List[str], random_dir : str, BO_run : int, tot
         
         if printout:
             print("mixing data with method: ", sampling_method)
-
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
         # sample from each domain and train a model
         path_to_final_model = extract_data_mixture_and_train(model=model, random_dir=random_dir, tokenizer=tokenizer, 
                                                         train_datasets=train_datasets, 
@@ -353,7 +354,7 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
 
         print("iteration: ", i)
         print("input_X: ", input_X) 
-        
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
         lora_config = arrange_lora_config(default_rank, default_dropout, default_num_layers_to_apply, default_layer)
         
         if lora_config is None:
@@ -385,7 +386,7 @@ def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_t
             
             observed_performance = 0
             tasks = list(evaluation_task.keys())
-            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=5, limit=limit)
             print("deleting lora model after evaluation.")
             base_path = lora_path.rsplit('/', 1)[0] + '/'
             shutil.rmtree(base_path, ignore_errors=True)
@@ -580,6 +581,7 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
 
         print("iteration: ", i)
         print("input_X: ", input_X)
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
         if printout:
             print("mixing data with method: ", sampling_method)
         
@@ -617,7 +619,7 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
             
             observed_performance = 0
             tasks = list(evaluation_task.keys())
-            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=5, limit=limit)
             print("deleting lora model after evaluation.")
             base_path = lora_path.rsplit('/', 1)[0] + '/'
             shutil.rmtree(base_path, ignore_errors=True)
@@ -626,7 +628,7 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, data_domains : List[str], ran
                 perf = results["results"][task][metric]
                 if task == "wikitext":
                     perf = - perf # we want to maximize the score, so for perplexity we maximize instead
-                observed_performance += (perf * task_weight)
+                observed_performance += (perf * weight)
             lora_model.to("cpu")
         print("current iteration weighted performance: ", observed_performance)
         # format the observed performance and current parameters for this round with previously seen values
@@ -796,6 +798,7 @@ def joint_opt_BO_LLM_fixed_feature_list(time_callback, lora_rank_max, data_domai
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
         print("input_X: ", input_X)
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
         if printout:
             print("mixing data with method: ", sampling_method)
         
@@ -829,7 +832,7 @@ def joint_opt_BO_LLM_fixed_feature_list(time_callback, lora_rank_max, data_domai
             
             observed_performance = 0
             tasks = list(evaluation_task.keys())
-            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=5, limit=limit)
             print("deleting lora model after evaluation.")
             shutil.rmtree(lora_path, ignore_errors=True)
             for task in evaluation_task:
@@ -1009,6 +1012,7 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
 
         print("iteration: ", i)
         print("input_X: ", input_X)
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
         if printout:
             print("mixing data with method: ", sampling_method)
         # lora_r, lora_dropout, num_layers_to_apply, five_dim_vector
@@ -1045,7 +1049,7 @@ def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : Lis
             
             observed_performance = 0
             tasks = list(evaluation_task.keys())
-            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=5, limit=limit)
             print("deleting lora model after evaluation.")
             base_path = lora_path.rsplit('/', 1)[0] + '/'
             shutil.rmtree(base_path, ignore_errors=True)
@@ -1197,6 +1201,7 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
     for i in tqdm(range(BO_run)):
         print("iteration: ", i)
         print("input_X: ", input_X)
+        tokenizer, model = get_tokenizer_and_model(model_id = model_id)
         if printout:
             print("mixing data with method: ", sampling_method)
         
@@ -1239,7 +1244,7 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
             # each task has a specified metric that's passed here.
             observed_performance = 0
             tasks = list(evaluation_task.keys())
-            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=1, limit=limit)
+            results=evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch,few_shot=5, limit=limit)
             for task in evaluation_task:
                 task_weight, metric = evaluation_task[task]
                 perf = results["results"][task][metric]
@@ -1260,6 +1265,8 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
         # tensor(0.1078), 0, tensor(0.1324), 10, 0, 0, 0, 0, 1, 34, 0.0748564749956131]
         # length is len_domain + 1 + 5 + 1 + 1
         def random_generator(data_domains, num_extra_vals=3, max_value=100):
+            random.seed()            # Equivalent to random.seed(None)
+            np.random.seed(None)
             result = []
 
             # a) First len(data_domains) values sum to 1
@@ -1282,7 +1289,7 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
             return result
 
         candidate = [random_generator(data_domains, 5, 0.1)]
-        
+        print("random candidate: ", candidate)
         # next candidate are between [0,1] values.
         # We need to perform some reverse engineering to make them into the correct values
         # i.e., reverse normalization.
@@ -1291,25 +1298,26 @@ def joint_opt_random(time_callback, lora_rank_max, data_domains : List[str], ran
             
             # Step 1: Squash first `data_domains_len` elements if less than 0.05
             for v in values[:data_domains_len]:
-                result.append(0 if v.item() < 0.05 else v)
+                result.append(0 if v < 0.05 else v)
             
             # Step 2: lora layers
             if len(values) > data_domains_len:
-                result.append(round(lora_max_num_layers*values[data_domains_len].item()))
+                result.append(round(lora_max_num_layers*values[data_domains_len]))
             
             # Step 3: Round the next 5 elements: integer options
             start = data_domains_len + 1
             for v in values[start:start+5]:
-                result.append(round(v.item()))
+                result.append(round(v))
             
             # Step 4: lora rank
             if len(values) > start + 5:
-                result.append(round(lora_rank_max * values[start + 5].item()))
+                result.append(round(lora_rank_max * values[start + 5]))
             
             # Step 5: drop out; unchanged
             if len(values) > start + 6:
-                result.append(values[start + 6].item())
+                result.append(values[start + 6])
             print("proposed candidate after processing:", result)
+            print(result)
             return result
         print("proposed candidate before processing:", candidate[0])
         
