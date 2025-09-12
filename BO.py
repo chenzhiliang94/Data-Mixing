@@ -12,7 +12,8 @@ import numpy as np
 import random
 from typing import Optional, List
 import gc
-
+import os
+os.environ["HF_ALLOW_CODE_EXECUTION"] = "1"
 from helper import get_data_from_mixing_ratio
 from image_training import train
 from typing import List
@@ -1472,267 +1473,6 @@ def sample_random_params(num_points, d):
         out.append(x)
     return np.stack(out)  # shape (num_points, 18)
 
-# class ParamVAE(nn.Module):
-#     def __init__(self, input_dim: int, latent_dim: int, hidden_dim: int = 64):
-#         super().__init__()
-#         self.fc1  = nn.Linear(input_dim, hidden_dim)
-#         self.fc21 = nn.Linear(hidden_dim, latent_dim)
-#         self.fc22 = nn.Linear(hidden_dim, latent_dim)
-#         self.fc3  = nn.Linear(latent_dim, hidden_dim)
-#         self.fc4  = nn.Linear(hidden_dim, input_dim)
-#     def encode(self, x):
-#         h = F.relu(self.fc1(x))
-#         return self.fc21(h), self.fc22(h)
-#     def reparameterize(self, mu, logvar):
-#         std = torch.exp(0.5 * logvar)
-#         eps = torch.randn_like(std)
-#         return mu + eps * std
-#     def decode(self, z):
-#         return self.fc4(F.relu(self.fc3(z)))
-#     def forward(self, x):
-#         mu, logvar = self.encode(x)
-#         z = self.reparameterize(mu, logvar)
-#         return self.decode(z), mu, logvar
-
-# def train_vae(
-#     x_tensor: torch.Tensor,
-#     latent_dim: int,
-#     hidden_dim: int,
-#     epochs: int,
-#     lr: float,
-#     device: torch.device
-# ) -> ParamVAE:
-#     input_dim = x_tensor.size(1)
-#     vae = ParamVAE(input_dim, latent_dim, hidden_dim).to(device)
-#     opt = optim.Adam(vae.parameters(), lr=lr)
-#     x_tensor = x_tensor.to(device)
-#     for _ in range(epochs):
-#         recon, mu, logvar = vae(x_tensor)
-#         recon_loss = F.mse_loss(recon, x_tensor)
-#         kld = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
-#         loss = recon_loss + kld
-#         opt.zero_grad()
-#         loss.backward()
-#         opt.step()
-#     return vae
-
-# def joint_opt_BO_LLM_with_vae(
-#     time_callback,
-#     lora_rank_max: int,
-#     data_domains: List[str],
-#     random_dir: str,
-#     BO_run: int,
-#     total_data: int,
-#     evaluation_cuda: str,
-#     evaluation_task: dict,
-#     ucb_beta: float,
-#     trial_number: int,
-#     sampling_method="random",
-#     train_epochs: int = 1,
-#     training_batch: int = 8,
-#     evaluation_batch: int = 4,
-#     printout=True,
-#     max_steps: int = -1,
-#     eval_steps: int = 100,
-#     limit=100,
-#     model_id="meta-llama/Meta-Llama-3-8B-Instruct",
-#     seed = 42, 
-#     output_dir = "results/",
-#     latent_dim: int = 4,
-#     vae_hidden: int = 128,
-#     vae_epochs: int = 50,
-#     vae_lr: float = 1e-3,
-# ):
-#     """
-#     BO in latent space via a VAE, then decode back to original 18-D parameters.
-#     """
-#     # 1) Warm-start two iterations of normal BO
-#     warmup_X, warmup_y, _ = joint_opt_BO_LLM(
-#         time_callback, lora_rank_max, data_domains, random_dir,
-#         2, total_data, evaluation_cuda, evaluation_task, 
-#         ucb_beta, trial_number, sampling_method,
-#         train_epochs, training_batch, evaluation_batch,
-#         printout, max_steps, eval_steps, limit,
-#         model_id, seed=seed, output_dir="dummy_output_dir",
-#     )
-#     GP_input = [list(x) for x in warmup_X]
-#     observed_output = list(warmup_y)
-
-#     main_vae_dir = os.path.join(os.getcwd(), "vae")
-#     os.makedirs(main_vae_dir, exist_ok=True)
-#     vae_path = os.path.join(main_vae_dir, f"vae_latent{latent_dim}_hidden{vae_hidden}.pth")
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     d = len(data_domains)
-#     vae_path = os.path.join(main_vae_dir, f"vae_latent{latent_dim}_hidden{vae_hidden}.pth")
-
-#     # 2) Load or Pre-train the VAE
-#     if os.path.exists(vae_path):
-#         print(f"Loading pretrained VAE from {vae_path}")
-#         vae = ParamVAE(d + 6 + 2, latent_dim, vae_hidden).to(device)
-#         vae.load_state_dict(torch.load(vae_path, map_location=device))
-#     else:
-#         print(f"Training new VAE and saving to {vae_path}")
-#         X_tensor = torch.tensor(sample_random_params(5000, d), dtype=torch.float32).to(device)
-#         vae = train_vae(X_tensor, latent_dim, hidden_dim=vae_hidden, epochs=vae_epochs, lr=vae_lr, device=device)
-#         torch.save(vae.state_dict(), vae_path)
-
-#     results_list = []
-#     max_performance_so_far = float('-inf')
-#     dataset = "_".join(evaluation_task.keys())
-#     run_BO_on = "vae"
-#     results_dir = f"{output_dir}/{dataset}/{run_BO_on}"
-#     os.makedirs(results_dir, exist_ok=True)
-#     results_path = os.path.join(results_dir, f"trial_{trial_number + 1}.json")
-#     meta_info = {
-#         "seed": seed,
-#     }
-#     meta_path = os.path.join(results_dir, f"trial_{trial_number + 1}_meta.json")
-#     with open(meta_path, "w") as f:
-#         json.dump(meta_info, f, indent=2)
-
-#     for i in range(2, BO_run):
-#         torch.manual_seed(seed)
-#         np.random.seed(seed)
-
-#         # 3) Encode past BO inputs into latent Z
-#         X_bo = torch.tensor(GP_input, dtype=torch.float32).to(device)
-#         vae.eval()
-#         with torch.no_grad():
-#             mu, logvar = vae.encode(X_bo)
-#             Zp = vae.reparameterize(mu, logvar).cpu()
-
-#         # 4) Fit GP on (Zp, observed_output)
-#         y_tensor = torch.tensor(observed_output, dtype=torch.float32).unsqueeze(-1)
-#         gp = SingleTaskGP(Zp.double(), y_tensor.double(), outcome_transform=Standardize(m=1))
-#         fit_gpytorch_mll(ExactMarginalLogLikelihood(gp.likelihood, gp))
-
-#         # 5) Acquire next z* with UCB
-#         UCB = UpperConfidenceBound(gp, beta=ucb_beta)
-#         bounds = torch.stack([torch.zeros(latent_dim), torch.ones(latent_dim)])
-#         z_candidate, _ = optimize_acqf(UCB, bounds=bounds, q=1, num_restarts=5, raw_samples=20)
-#         z_candidate = z_candidate.detach()
-
-#         # 6) Decode z* → x_candidate (18-D)
-#         with torch.no_grad():
-#             x_candidate = vae.decode(z_candidate.to(device)).cpu().squeeze(0).numpy()
-
-#         # 7) Discretize + renormalize
-#         # a) mixing dims
-#         mix = np.clip(x_candidate[:d], 0, None)
-#         if mix.sum() > 0:
-#             mix /= mix.sum()
-#         # b) num_layers
-#         lora_max_layers = 32
-#         num_layers = int(np.clip(round(x_candidate[d]), 1, lora_max_layers))
-#         # c) flags
-#         flags = (x_candidate[d+1:d+6] > 0.5).astype(int)
-#         # d) rank
-#         rank_opts = np.array([8,16,32,64,128])
-#         raw_rank = x_candidate[d+6]
-#         rank = int(rank_opts[np.argmin(np.abs(rank_opts - raw_rank))])
-#         # e) dropout
-#         max_dropout = 0.2
-#         dropout = float(np.clip(x_candidate[d+7], 0.0, max_dropout))
-
-#         input_X = np.concatenate([
-#             mix,
-#             [num_layers],
-#             flags,
-#             [rank],
-#             [dropout]
-#         ]).tolist()
-
-#         # if no modules are active, force at least one
-#         if sum(flags) == 0:
-#             flags[0] = 1.0
-#             input_X = np.concatenate([
-#                 mix,
-#                 [num_layers],
-#                 flags,
-#                 [rank],
-#                 [dropout]
-#             ]).tolist()
-
-#         if printout:
-#             print(f"[VAE-BO] iter {i}, proposed parameters (discrete): {input_X}")
-
-#         # 8) Train & evaluate exactly as in joint_opt_BO_LLM
-#         tokenizer, base_model = get_tokenizer_and_model(model_id=model_id)
-#         base_model = base_model.to(evaluation_cuda)
-#         for mod in base_model.modules():
-#             if hasattr(mod, "weight") and isinstance(mod.weight, torch.Tensor):
-#                 mod.dtype  = mod.weight.dtype
-#                 mod.device = mod.weight.device
-#         lora_cfg = arrange_lora_config(
-#             input_X[-2],           # lora_rank
-#             input_X[-1],           # dropout
-#             int(input_X[d]),       # num_layers
-#             input_X[d+1:d+6],      # flags
-#         )
-
-#         if lora_cfg is None:
-#             # penalize completely invalid config instead of crashing
-#             perf = -1e6
-#         else:
-#             path_to_model = extract_data_mixture_and_train(
-#                 model=base_model,
-#                 random_dir=random_dir,
-#                 tokenizer=tokenizer,
-#                 train_datasets =[load_data(dom)[0] for dom in data_domains],
-#                 val_datasets   =[load_data(dom)[1] for dom in data_domains],
-#                 data_domains = data_domains,
-#                 mixing_ratio = input_X[:d],
-#                 additional_info=[None]*d,
-#                 total_number_datapoints=total_data,
-#                 run_name=f"VAE_BO_run_{i}",
-#                 method=sampling_method,
-#                 train_epochs=train_epochs,
-#                 batch_size=training_batch,
-#                 max_step=max_steps,
-#                 lora_config=lora_cfg,
-#                 eval_steps=eval_steps,
-#                 callback=[time_callback],
-#             )
-#             with torch.no_grad():
-#                 torch.cuda.empty_cache()
-
-#             peft_conf = PeftConfig.from_pretrained(path_to_model)
-#             model_lm = AutoModelForCausalLM.from_pretrained(peft_conf.base_model_name_or_path, torch_dtype="auto")
-#             lora_model = PeftModel.from_pretrained(model_lm, path_to_model).to(evaluation_cuda)
-#             tok = AutoTokenizer.from_pretrained(peft_conf.base_model_name_or_path, trust_remote_code=True)
-
-#             perf = 0.0
-#             results = evaluate_tasks(list(evaluation_task), lora_model, tok,
-#                                      batch=evaluation_batch, few_shot=1, limit=limit)
-#             for task, (w, metric) in evaluation_task.items():
-#                 score = results["results"][task][metric]
-#                 perf += w * ( -score if task=="wikitext" else score )
-
-#             lora_model.to("cpu")
-#             shutil.rmtree(path_to_model, ignore_errors=True)
-
-#             # Save results for this iteration
-#             max_performance_so_far = max(max_performance_so_far, perf)
-#             results_list.append({
-#                 "iteration": i + 1,
-#                 "mixing_ratio": [to_serializable(x) for x in input_X[:len(data_domains)]], # mixing ratio is the first len(data_domains) elements
-#                 "model_params": [to_serializable(x) for x in input_X[len(data_domains):]], # model params are the last 6 elements
-#                 "performance": perf,
-#                 "max_performance_so_far": max_performance_so_far
-#             })
-#             # Write to JSON after each iteration for safety
-#             with open(results_path, "w") as f:
-#                 json.dump(results_list, f, indent=2)
-
-#         if printout:
-#             print(f"[VAE-BO] iter {i}, performance: {perf:.6f}")
-
-#         # 9) Append for next round
-#         GP_input.append(input_X)
-#         observed_output.append(perf)
-
-#     return GP_input, observed_output, gp
-
 class ParamVAE(nn.Module):
     def __init__(self, input_dim: int, latent_dim: int, hidden_dim: int = 64):
         super().__init__()
@@ -2023,5 +1763,359 @@ def joint_opt_BO_LLM_with_vae(
         # 9) Append for next round
         GP_input.append(input_X)
         observed_output.append(perf)
+
+    return GP_input, observed_output, gp
+
+# Intialise with bad mixing ratios
+def get_mixing_ratio(evaluation_task):
+    dataset = "_".join(evaluation_task.keys())
+    if dataset == "gsm8k":
+        return [0,0,0.14,0.31,0.12,0.14,0,0.29,0,0]
+    elif dataset == "commonsense_qa":
+        return [0,0,0,1,0,0,0,0,0,0]
+    elif dataset == "headqa_en":
+        return [0.1221754401922226,0.0,0.539222776889801,0.0,0.0,0.0,0.2574373185634613,0.0,0.0,0.0811644196510315]
+    elif dataset == "pubmedqa":
+        return [0.0,0.0,0.0,0.0,0.0,0.06087161973118782,0.9391283392906189,0.0,0.0,0.0]
+    elif dataset == "triviaqa":
+        return [0.0,0.0,0.0,0.6801438927650452,0.11240127682685852,0.0,0.2074548453092575,0.0,0.0,0.0]
+    elif dataset == "truthfulqa_gen":
+        return [0.0,0.0,0.0,0.0,0.0,0.20507599413394928,0.0,0.0,0.0,0.7949240207672119]
+    else:   # fallback for wikitext, mmlu, ai2_arc
+        return [1,0,0,0,0,0,0,0,0,0]
+
+def sum_to_one(x: List[float]) -> List[float]:
+    t = np.asarray(x, dtype=np.float32)
+    s = float(t.sum())
+    if s <= 1e-12:
+        return (np.ones_like(t) / len(t)).tolist()
+    return (t / s).tolist()
+
+# Function to scale original raw params (18D) to [0,1] range, and the inverse
+def scale_params(vec: List[float],
+                 len_domains: int,
+                 lora_max_layers: int = 32,
+                 max_rank: int = 128,
+                 direction: str = "forward") -> List[float]:
+    
+    v = list(vec)
+    D = len_domains
+
+    if direction == "forward":
+        # Normalise data mix ratio
+        mix = sum_to_one(v[:D])
+
+        # Scale layers by max_layers
+        layers_scaled = 0.0 if lora_max_layers <= 0 else np.clip(v[D] / float(lora_max_layers), 0.0, 1.0)
+
+        # Ensure flags are 0/1
+        flags = [float(1.0 if f >= 0.5 else 0.0) for f in v[D+1:D+6]]
+
+        # Scale rank by max_rank
+        rank_scaled = float(v[D+6]) / float(max_rank)
+
+        # Scale dropout
+        dropout_scaled = np.clip(v[D+7] / 0.1, 0.0, 1.0)
+
+        return mix + [float(layers_scaled)] + flags + [float(rank_scaled)] + [float(dropout_scaled)]
+
+    elif direction == "inverse":
+        # clamp to [0,1]
+        x_0_to_1 = np.clip(np.asarray(v, dtype=np.float32), 0.0, 1.0)
+        
+        # Normalise data mix ratio
+        mix = sum_to_one(x_0_to_1[:D])
+
+        # Scale layers by max_layers
+        layers = int(round(float(x_0_to_1[D]) * float(lora_max_layers)))
+        layers = int(np.clip(layers, 0, lora_max_layers))
+
+        # Ensure flags are 0/1
+        flags = [int(1 if z >= 0.5 else 0) for z in x_0_to_1[D+1:D+6]]
+        if sum(flags) == 0:
+            # force the strongest (largest u) to 1
+            j = int(np.argmax(x_0_to_1[D+1:D+6]))
+            flags[j] = 1
+
+        # Scale rank by max_rank
+        rank_raw = max(1, int(round(float(x_0_to_1[D+6]) * float(max_rank))))
+
+        # Scale dropout
+        drop = float(np.clip(x_0_to_1[D+7], 0.0, 1.0)) * 0.1
+
+        return mix + [layers] + flags + [rank_raw] + [drop]
+
+    else:
+        raise ValueError("direction must be 'forward' or 'inverse'")
+
+#DKL implementation
+import torch
+import torch.nn as nn
+
+from gpytorch.kernels import Kernel, MaternKernel, RBFKernel, ScaleKernel
+from gpytorch.utils.grid import ScaleToBounds
+    
+# Adapted from Apivich
+class FeatureModule(nn.Sequential):
+    def __init__(self, dim_seq):
+        super().__init__()
+        assert len(dim_seq) >= 2
+        for i in range(len(dim_seq) - 1):
+            self.add_module(f'linear{i}', nn.Linear(dim_seq[i], dim_seq[i+1]))
+            if i + 2 < len(dim_seq):
+                self.add_module(f'relu{i}', nn.ReLU())
+
+class DeepKernel(Kernel):
+    def __init__(self, dim_seq, base_kernel: Kernel = None, freeze_nn: bool = False,
+                 use_scale_to_bounds: bool = True):
+        super().__init__()
+        self.feature_module = FeatureModule(dim_seq=dim_seq)
+        if freeze_nn:
+            self.feature_module.requires_grad_(False)
+        self.kernel = ScaleKernel(MaternKernel(nu=2.5)) if base_kernel is None else base_kernel
+        self.scale_to_bounds = ScaleToBounds(-1., 1.) if use_scale_to_bounds else None
+        self.feature_module = self.feature_module.to(dtype=torch.double)
+
+    def _transform(self, x: torch.Tensor) -> torch.Tensor:
+        # Ensure dtype/device match the feature module
+        fm_dtype = next(self.feature_module.parameters()).dtype
+        fm_device = next(self.feature_module.parameters()).device
+        x_f = x.to(dtype=fm_dtype, device=fm_device)
+        z = self.feature_module(x_f)
+        if self.scale_to_bounds is not None:
+            z = self.scale_to_bounds(z)
+        return z
+
+    def forward(self, x1, x2, diag=False, **params):
+        x1_t = self._transform(x1)
+        x2_t = self._transform(x2)
+        return self.kernel.forward(x1=x1_t, x2=x2_t, diag=diag, **params)
+
+@torch.no_grad()
+def decode_to_config_dkl(
+    curr_vae_space: torch.Tensor,         # shape: (input_dim,), values in [0,1]
+    len_domains: int,
+    lora_max_layers: int,
+    rank_max: int = 128
+) -> Tuple[List[float], List[float]]:
+    # ensure 0..1 and renormalize mixture part
+    X_between_0_to_1 = torch.clamp(curr_vae_space.detach().cpu().float(), 0.0, 1.0).tolist()
+    X_between_0_to_1[:len_domains] = sum_to_one(X_between_0_to_1[:len_domains])
+    x_raw = scale_params(X_between_0_to_1, len_domains, lora_max_layers, rank_max, direction="inverse")
+    return x_raw, X_between_0_to_1
+
+from botorch.settings import debug
+
+# Fix deadlock
+def joint_opt_BO_LLM_with_dkl(
+    time_callback,
+    lora_rank_max: int,
+    data_domains: List[str],
+    random_dir: str,
+    BO_run: int,
+    total_data: int,
+    evaluation_cuda: str,
+    evaluation_task: dict,
+    ucb_beta: float,
+    sampling_method: str = "random",
+    train_epochs: int = 1,
+    training_batch: int = 8,
+    evaluation_batch: int = 4,
+    printout: bool = True,
+    max_steps: int = -1,
+    eval_steps: int = 100,
+    limit: int = 100,
+    seed: int=42,
+    # DKL options:
+    dkl_feature_dim: int = 8,
+    dkl_hidden: int = 64,
+    dkl_freeze_nn: bool = False,
+    model_id: str = "LLM/llama_8b_instruct",
+):
+    import os, gc  # new
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")  # new
+    os.environ.setdefault("OMP_NUM_THREADS", "1")  # new
+    os.environ.setdefault("MKL_NUM_THREADS", "1")  # new
+    torch.set_num_threads(1)  # new
+
+    train_datasets = []
+    val_datasets = []
+    for data_domain in data_domains:
+        train_dataset, val_dataset = load_data(data_domain=data_domain)
+        train_datasets.append(train_dataset)
+        val_datasets.append(val_dataset)
+
+    lora_max_num_layers = 32
+    
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+    len_domains = len(data_domains)
+    # input_X = (np.ones(len_domains) / len_domains).tolist()
+    input_X = get_mixing_ratio(evaluation_task)
+    input_X.append(int(lora_max_num_layers * 0.5))
+    input_X += [1, 1, 1, 1, 1]
+    input_X.append(72)
+    input_X.append(0.05)
+
+    input_X_between_0_1 = scale_params(
+        input_X, len(data_domains), lora_max_num_layers, lora_rank_max, "forward"
+    )
+    
+    all_influences = []
+    for train_domain in data_domains:
+        all_influences.append(None)
+
+    GP_input = []
+    observed_output = []
+
+    input_dim = len(data_domains) + 8
+    assert len(input_X_between_0_1) == input_dim
+    bounds = torch.stack([
+        torch.zeros(input_dim, dtype=torch.double),
+        torch.ones(input_dim, dtype=torch.double),
+    ])
+    model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+    tokenizer, base_model_cpu = get_tokenizer_and_model(model_id=model_id)  # new
+    base_model_cpu = base_model_cpu.to("cpu")  # new
+
+    for i in range(BO_run):
+        if printout:
+            print("iteration: ", i)
+            print("input_X: ", input_X)
+            print("mixing data with method: ", sampling_method)
+
+        lora_config = arrange_lora_config(
+            input_X[-2], input_X[-1], input_X[len(data_domains)],
+            input_X[len(data_domains)+1:len(data_domains)+6]
+        )
+        if lora_config is None:
+            observed_performance = 0.1
+        else:
+            print("Number of epochs: ", train_epochs)
+            path_to_final_model = extract_data_mixture_and_train(
+                model=base_model_cpu,  # new
+                random_dir=random_dir, tokenizer=tokenizer, 
+                train_datasets=train_datasets,  
+                val_datasets=val_datasets, 
+                data_domains=data_domains, 
+                mixing_ratio=input_X[:len(data_domains)], 
+                additional_info=[None for _ in data_domains],
+                total_number_datapoints=total_data, 
+                run_name=f"BO_run_{i}_{os.getpid()}",  # new
+                method=sampling_method,
+                train_epochs=train_epochs, 
+                batch_size=training_batch,
+                max_step=max_steps,
+                lora_config=lora_config,
+                eval_steps=eval_steps, callback=[time_callback]
+            )
+
+            with torch.no_grad():
+                torch.cuda.empty_cache()
+            print("evaluating...")
+            lora_path = path_to_final_model
+            lora_model = PeftModel.from_pretrained(base_model_cpu, lora_path).to(evaluation_cuda)  # new
+
+            observed_performance = 0
+            tasks = list(evaluation_task.keys())
+            results = evaluate_tasks(tasks, lora_model, tokenizer, evaluation_batch, few_shot=1, limit=limit)
+            print("deleting lora model after evaluation.")
+            lora_model.to("cpu")  # new
+            del lora_model  # new
+            gc.collect()  # new
+            torch.cuda.empty_cache()  # new
+            shutil.rmtree(lora_path, ignore_errors=True)  # new
+            for task in evaluation_task:
+                task_weight, metric = evaluation_task[task]
+                if task == "ai2_arc":
+                    perf = results["results"]["arc_challenge"][metric]
+                else:
+                    perf = results["results"][task][metric]
+                if task == "wikitext":
+                    perf = - perf # we want to maximize the score, so for perplexity we maximize instead
+                observed_performance += (perf * task_weight)
+
+        print("current iteration weighted performance: ", observed_performance)
+
+        current_gp_input = torch.tensor(input_X_between_0_1, dtype=torch.double)
+        GP_input.append(current_gp_input.tolist())
+        observed_output.append(observed_performance)
+
+        train_X = torch.tensor(GP_input, dtype=torch.double)
+        train_Y = torch.tensor(observed_output, dtype=torch.double).view(-1,1)
+
+        dim_seq = [input_dim, dkl_hidden, dkl_hidden, dkl_feature_dim]
+        deep_kernel = DeepKernel(dim_seq=dim_seq, freeze_nn=dkl_freeze_nn)
+
+        gp = SingleTaskGP(train_X, train_Y, covar_module=deep_kernel, outcome_transform=Standardize(m=1))
+        mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
+
+        #debug pubmed
+        print(
+            "Y finite:", np.isfinite(observed_output).all(),
+            "Y std:", (np.std(observed_output) if len(observed_output) > 1 else "n/a"),
+            "X dup:", (len(GP_input) != len({tuple(x) for x in GP_input}))
+        )
+
+        with debug(True):
+            fit_gpytorch_mll(mll)  # will surface the inner exception with stack + context
+            
+        fit_gpytorch_mll(mll)
+        
+        UCB = UpperConfidenceBound(gp, beta=ucb_beta)
+
+        len_domains = len(data_domains)
+        dtype = bounds.dtype
+        device = bounds.device
+
+        idx = torch.arange(len_domains, dtype=torch.long, device=device)
+        coef = torch.ones(len_domains, dtype=dtype, device=device)
+        rhs  = torch.tensor(1.0, dtype=dtype, device=device)
+
+        candidate, acq_value = optimize_acqf(
+            UCB,
+            bounds=bounds,
+            q=1,
+            num_restarts=5,
+            raw_samples=10,
+            equality_constraints=[(idx, coef, rhs)],
+        )
+        cand = candidate[0].detach().cpu().float()
+        print("proposed candidate before processing:", candidate[0])
+        
+        def process_values(values, data_domains_len):
+            result = []
+            for v in values[:data_domains_len]:
+                result.append(0 if v.item() < 0.05 else v)
+            if len(values) > data_domains_len:
+                result.append(round(lora_max_num_layers*values[data_domains_len].item()))
+            start = data_domains_len + 1
+            for v in values[start:start+5]:
+                result.append(round(v.item()))
+            if len(values) > start + 5:
+                result.append(round(lora_rank_max * values[start + 5].item()))
+            if len(values) > start + 6:
+                result.append(values[start + 6].item())
+            print("proposed candidate after processing:", result)
+            return result
+        
+        input_X, input_X_between_0_1 = decode_to_config_dkl(curr_vae_space=candidate[0], len_domains=len_domains, lora_max_layers=lora_max_num_layers, rank_max=lora_rank_max)
+
+        min_layers = 1
+        min_rank   = 1
+        min_drop   = 0.01
+        max_drop   = 0.20
+
+        layers = int(np.clip(input_X[len_domains], min_layers, lora_max_num_layers))
+        flags5 = [1 if v >= 0.5 else 0 for v in input_X[len_domains+1:len_domains+6]]
+        rank   = int(np.clip(input_X[len_domains+6], min_rank, lora_rank_max))
+        drop   = float(np.clip(input_X[len_domains+7], min_drop, max_drop))
+
+        input_X[len_domains]                     = layers
+        input_X[len_domains+1:len_domains+6]    = flags5
+        input_X[len_domains+6]                   = rank
+        input_X[len_domains+7]                   = drop
 
     return GP_input, observed_output, gp

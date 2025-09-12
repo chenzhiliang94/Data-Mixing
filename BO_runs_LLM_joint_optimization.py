@@ -1,5 +1,5 @@
 import json
-from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list, evaluate_single_configuration, joint_opt_BO_LLM_with_vae
+from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list, evaluate_single_configuration, joint_opt_BO_LLM_with_vae, joint_opt_BO_LLM_with_dkl
 
 from argparse import ArgumentParser
 from transformers import TrainerCallback
@@ -48,6 +48,10 @@ parser.add_argument(
     default=1e-3,
     help="Learning rate for the VAE optimizer."
 )
+parser.add_argument("--dkl_feature_dim", help="dkl feature dim", type=int, default=32)
+parser.add_argument("--dkl_hidden", help="dkl hidden layers", type=int, default=64)
+parser.add_argument("--dkl_freeze_nn", help="dkl freeze nn", type=bool, default=False)
+parser.add_argument("--seed", help="random seed", type=int, default=42)
 
 class TimerCallback(TrainerCallback):
     def __init__(self, max_duration_seconds):
@@ -289,6 +293,19 @@ for sample_method in sample_methods: # random sampling
                                                                     vae_hidden=args["vae_hidden"],
                                                                     vae_epochs= args["vae_epochs"], 
                                                                     vae_lr=args["vae_lr"])
+        elif run_BO_on == "dkl":
+            print("running BO with DKL")
+            GP_input, observed_output, gp = joint_opt_BO_LLM_with_dkl(time_callback=TimerCallback(time_limit),
+                                                                    lora_rank_max=lora_rank, data_domains=data_domains,
+                                                                    random_dir=random_string, BO_run=BO_run, total_data=total_data,
+                                                                    evaluation_cuda=cuda, evaluation_task=evaluation_task,
+                                                                    ucb_beta=ucb_beta, sampling_method=sample_method,
+                                                                    train_epochs=train_epochs, training_batch=training_batch,
+                                                                    evaluation_batch=evaluation_batch, printout=True,
+                                                                    max_steps=evaluation_steps, eval_steps=evaluation_steps,
+                                                                    limit=limit, seed=seed,
+                                                                    dkl_feature_dim=args["dkl_feature_dim"], dkl_hidden=args["dkl_hidden"],dkl_freeze_nn=args["dkl_freeze_nn"])
+                                                                    
         elif run_BO_on == "single_eval":    # this is for manual input, not running BO
             print("not running BO, just printing performance when using manual inputs")
             observed_output = evaluate_single_configuration(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
