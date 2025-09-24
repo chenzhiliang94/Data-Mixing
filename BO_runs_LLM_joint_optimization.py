@@ -1,5 +1,6 @@
 import json
 from BO import run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list, evaluate_single_configuration, joint_opt_BO_LLM_with_vae, joint_opt_BO_LLM_with_dkl
+from BO import joint_SL_BO, run_BO_for_LLM, joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data, joint_opt_BO_LLM_fixed_feature_list, evaluate_single_configuration, joint_opt_BO_LLM_with_vae
 
 from argparse import ArgumentParser
 from transformers import TrainerCallback
@@ -138,7 +139,7 @@ task_metrics = {
   "truthfulqa_gen": "bleu_acc,none",
   "wikitext": "word_perplexity,none",
   "mmlu": "acc,none",
-  "ai2_arc": "acc,none"
+  "arc_challenge": "acc,none"
 }
 
 # set up training data (depending if we want ood)
@@ -252,7 +253,7 @@ for sample_method in sample_methods: # random sampling
                                                                         output_dir=output_dir)
         elif run_BO_on == "random":
             print("using random configurations")
-            joint_opt_random(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
+            GP_input, observed_output, = joint_opt_random(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
                                                         random_dir = random_string, 
                                                             BO_run = BO_run,
                                                             total_data = total_data, 
@@ -267,6 +268,25 @@ for sample_method in sample_methods: # random sampling
                                                             limit=limit,
                                                             printout=True,
                                                             seed=seed)
+        elif run_BO_on == "Joint_SL_BO":
+            GP_input, observed_output, gp =  joint_SL_BO(time_callback=TimerCallback(time_limit),
+                        lora_rank_max=lora_rank,
+                        data_domains=data_domains,
+                        random_dir=random_string,
+                        BO_run=BO_run,
+                        total_data=total_data,
+                        evaluation_cuda=cuda,
+                        evaluation_task=evaluation_task,
+                        ucb_beta=ucb_beta,
+                        trial_number=x,
+                        sampling_method=sample_method,
+                        train_epochs=train_epochs,
+                        training_batch=training_batch,
+                        evaluation_batch=evaluation_batch,
+                        printout=True,
+                        limit=limit,
+                        seed=seed,
+                        output_dir=output_dir)
         elif run_BO_on == "vae":
             print("running BO with VAE")
             GP_input, observed_output, gp = joint_opt_BO_LLM_with_vae(time_callback=TimerCallback(time_limit),

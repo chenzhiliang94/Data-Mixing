@@ -31,7 +31,42 @@ from peft import (
 from transformers import LlamaForCausalLM, LlamaTokenizer
 
 from LLM.tokenize_util import *
+import torch
+import torch.nn as nn
+# Define a simple MLP
+class Predictor(nn.Module):
+    def __init__(self, input_dim):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1)
+        )
 
+    def forward(self, x):
+        return self.net(x)
+        
+def get_model_and_predict(X):
+    
+    # --- Recreate the model with correct input size ---
+    input_dim = len(X)   # or set explicitly if you know the feature dimension
+    model = Predictor(input_dim=input_dim)
+
+    # --- Load the saved weights ---
+    model_path = "output_joint_optimization/scaling_law_predictor/commonsense_qa_predictor.pt"
+    model.load_state_dict(torch.load(model_path))
+
+    # --- Set to eval mode for inference ---
+    model.eval()
+
+    # Example: make a prediction
+    with torch.no_grad():
+        sample = torch.tensor(X).unsqueeze(0)  # shape (1, input_dim)
+        pred = model(sample)
+        return pred
+    
 def get_tokenizer_and_model(model_id = "LLM/llama_8b_instruct"):
 
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -201,7 +236,7 @@ def extract_data_mixture_and_train(model, random_dir, tokenizer, train_datasets,
         "squadv2":generate_and_tokenize_prompt_squad,
         "headqa_en":generate_and_tokenize_prompt_headqa,
         "mmlu":generate_and_tokenize_prompt_mmlu,
-        "ai2_arc":generate_and_tokenize_prompt_ai2_arc,
+        "arc_challenge":generate_and_tokenize_prompt_ai2_arc,
     }
     
     # sample the correct amount of data from each domain
@@ -376,7 +411,7 @@ def load_data(data_domain):
         dataset = datasets.load_dataset("cais/mmlu", "all", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["test"]
         val_dataset = dataset["validation"]
-    elif data_domain == "ai2_arc":
+    elif data_domain == "arc_challenge":
         dataset = datasets.load_dataset("allenai/ai2_arc", "ARC-Challenge", cache_dir = "./datasets", trust_remote_code=True)
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
