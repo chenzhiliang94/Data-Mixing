@@ -23,15 +23,13 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-
-import matplotlib.pyplot as plt
+from datasets import concatenate_datasets
+from LLM.llm import sample, tokenizing_method, train_on_inputs, add_eos_token
+from LLM.tokenize_util import tokenizing_method
 
 from peft import (
     LoraConfig,
     get_peft_model,
-    get_peft_model_state_dict,
-    prepare_model_for_kbit_training ,
-    set_peft_model_state_dict,
 )
 
 lora_alpha = 16
@@ -52,6 +50,27 @@ lora_config = LoraConfig(
     task_type="CAUSAL_LM",
 )
 
+def print_non_lora_params(model, title=""):
+    print(f"\n===== {title} =====")
+    count = 0
+    for name, param in model.named_parameters():
+        # Exclude LoRA parameters
+        if "lora_" not in name:
+            print(name, param.data.view(-1)[:5])
+            count += 1
+            if count >= 5:
+                break
+            
+def print_lora_params(model, title=""):
+    print(f"\n===== {title} =====")
+    count = 0
+    for name, param in model.named_parameters():
+        if "lora_" in name and param.requires_grad:
+            print(name, param.data.view(-1)[:5])
+            count += 1
+            if count >= 5:
+                break
+        
 # Convert all elements to float or int for JSON serialization
 def to_serializable(val):
     if isinstance(val, torch.Tensor):
@@ -325,7 +344,9 @@ def joint_opt_BO_LLM_generalized(
         BO_run: int,
         total_data: int,
         evaluation_task: dict,
+        eval_method: str,
         BO_params : dict,
+        model_id : str,
         sampling_method="random",
         train_epochs: int = 1,
         training_batch: int = 8,
@@ -334,7 +355,6 @@ def joint_opt_BO_LLM_generalized(
         eval_steps=100,
         limit=100,
         seed=42,
-        model_id="meta-llama/Meta-Llama-3-8B-Instruct",
         what_to_optimize = "both"):
     """
     Unified Bayesian Optimization loop for:
@@ -348,31 +368,54 @@ def joint_opt_BO_LLM_generalized(
     """
     
     # -------------------------
-    # Load datasets
+    # Tokenizer & model
+    # -------------------------
+    tokenizer, model = get_tokenizer_and_model(model_id=model_id)
+    lora_max_num_layers = len(model.model.layers)
+    lora_rank_max = 128  # adjust as needed
+    
+    # -------------------------
+    # Load training datasets
     # -------------------------
     train_datasets, val_datasets = [], []
     for domain in data_domains:
         train_dataset, val_dataset = load_data(data_domain=domain)
         train_datasets.append(train_dataset)
         val_datasets.append(val_dataset)
-
+        
     # -------------------------
-    # Tokenizer & model
+    # Load evaluation datasets if our performance metric is eval_loss, else this is None
     # -------------------------
-    tokenizer, model = get_tokenizer_and_model(model_id=model_id)
-    lora_max_num_layers = len(model.model.layers)
-    lora_rank_max = 128  # adjust as needed
+    all_sampled_evaluation_data = None
+    if eval_method == "eval_loss":
+        evaluation_datasets_and_weights = []
+        for domain in evaluation_task.keys():
+            _ , val_dataset = load_data(data_domain=domain)
+            evaluation_datasets_and_weights.append((val_dataset, domain, evaluation_task[domain][0])) # 0-th index is weight
+        all_sampled_evaluation_data = [] # same distribution as training data, but validation
+        evaluation_datasets_and_weights
+        print("evaluation dataset:")
+        for eval_data, data_domain, weight in evaluation_datasets_and_weights:
+            print("data domain: ", data_domain, " weight: ", weight)
+            sampled_val_data = sample(eval_data, int(total_data * weight/10), additional_info=None, method="random", data_domain=data_domain, seed=seed)
+            sampled_val_data = sampled_val_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
+                                                                                "add_eos_token": add_eos_token,
+                                                                                "train_on_inputs": train_on_inputs,
+                                                                                })
+            sampled_val_data = sampled_val_data.select_columns(['input_ids', 'attention_mask', 'labels'])
+            all_sampled_evaluation_data.append(sampled_val_data)
+        all_sampled_evaluation_data = concatenate_datasets(all_sampled_evaluation_data)
 
     # -------------------------
     # Initialize input_X
     # -------------------------
     if what_to_optimize == "data":
-        input_X = [1/len(data_domains)]*len(data_domains)
-        input_X_between_0_1 = [1/len(data_domains)]*len(data_domains)
+        input_X = [1] + [0] * (len(data_domains) - 1)
+        input_X_between_0_1 = [1] + [0] * (len(data_domains) - 1)
     elif what_to_optimize == "model":
         input_X = []
-        input_X.append(1)      # num_layers_to_apply
-        input_X_between_0_1.append(0.5)
+        input_X.append(16)      # num_layers_to_apply
+        input_X_between_0_1.append(16/lora_max_num_layers)
         input_X += [1]*5                                  # layer mask
         input_X_between_0_1 += [1]*5
         input_X.append(lora_rank_max)                                # rank
@@ -386,12 +429,12 @@ def joint_opt_BO_LLM_generalized(
     else: # optimize both
         
         # data mixture
-        input_X = [1/len(data_domains)]*len(data_domains)
-        input_X_between_0_1 = [1/len(data_domains)]*len(data_domains)
+        input_X = [1] + [0] * (len(data_domains) - 1)
+        input_X_between_0_1 = [1] + [0] * (len(data_domains) - 1)
         
         # model configs
-        input_X.append(1)      # num_layers_to_apply
-        input_X_between_0_1.append(0.5) # normalize
+        input_X.append(16)      # num_layers_to_apply
+        input_X_between_0_1.append(16/lora_max_num_layers) # normalize
         
         input_X += [1]*5                                  # layer mask
         input_X_between_0_1 += [1]*5
@@ -554,13 +597,16 @@ def joint_opt_BO_LLM_generalized(
         model = get_peft_model(model, lora_config)
         model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
+        print_lora_params(model, "LoRA parameters BEFORE training")
+        print_non_lora_params(model, "Non-LoRA parameters BEFORE training")
         # Train & evaluate
-        observed_performance = extract_data_mixture_and_train(
+        train_results = extract_data_mixture_and_train(
             model=model,
             tokenizer=tokenizer,
             train_datasets=train_datasets,
             val_datasets=val_datasets,
             data_domains=data_domains,
+            evaluation_dataset=all_sampled_evaluation_data, # evaluation data
             mixing_ratio=mixing_ratio,
             additional_info=all_influences,
             total_number_datapoints=total_data,
@@ -573,21 +619,35 @@ def joint_opt_BO_LLM_generalized(
             callback=[time_callback],
             seed=seed
         )
+        print_lora_params(model, "LoRA parameters AFTER training (should be changed)")
+        print_non_lora_params(model, "Non-LoRA parameters AFTER training (should be unchanged)")
 
         # Evaluate
         model.eval()
-        results = evaluate_tasks(list(evaluation_task.keys()), model, tokenizer, evaluation_batch, few_shot=5, limit=limit)
-        perf = 0
-        for task, (weight, metric) in evaluation_task.items():
-            p = results["results"][task][metric]
-            if task=="wikitext": p=-p
-            perf += p*weight
-        observed_performance = perf * scaling_weight
+        observed_performance = None
+        if eval_method == "performance": # performance
+            print("evaluating with task performance...")
+            if limit == 0:
+                limit = None
+            results = evaluate_tasks(list(evaluation_task.keys()), model, tokenizer, evaluation_batch, few_shot=5, limit=limit)
+            perf = 0
+            for task, (weight, metric) in evaluation_task.items():
+                p = results["results"][task][metric]
+                if task=="wikitext": p=-p
+                perf += p*weight*scaling_weight
+            observed_performance = perf
+        elif eval_method == "eval_loss": # if we want to minimize loss
+            observed_performance = - min(train_results["eval_loss"])
+            
+        else:
+            assert False, "eval_method not properly set."
         
         # max performance
         max_performance_so_far = max(max_performance_so_far, observed_performance)
         results_list.append(observed_performance)
         print("BO observations: ", results_list)
+        print("current iteration performance: ", observed_performance)
+        print("max performance so far: ", max_performance_so_far)
 
         GP_input.append(input_X_between_0_1)
         observed_output.append(observed_performance)
@@ -611,7 +671,7 @@ def joint_opt_BO_LLM_generalized(
         if BO_params["optimize_method"] == "default":
             print("acq optimization method is default (continuous relaxation)")
             if what_to_optimize == "data": # sum to 1 for data
-                candidate, _ = optimize_acqf(acq, bounds=bounds, q=1, num_restarts=5, raw_samples=10,
+                candidate, _ = optimize_acqf(acq, bounds=bounds, q=1, num_restarts=5, raw_samples=1024,
                                             equality_constraints=[(torch.tensor(x), torch.tensor(A), 1)])
             if what_to_optimize == "model": # no constraints
                 candidate, _ = optimize_acqf(acq, bounds=bounds, q=1, num_restarts=5, raw_samples=1024)
