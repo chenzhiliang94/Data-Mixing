@@ -1,5 +1,4 @@
 
-
 # actual tokenizing. prompt is the convo in chat template form
 def tokenize(tokenizer, prompt, add_eos_token=True, padding=False):
     # there's probably a way to do this with the tokenizer settings
@@ -508,3 +507,19 @@ def generate_and_tokenize_prompt_ai2_arc(data_point, tokenizer, add_eos_token, t
             user_prompt_len:
         ]  # could be sped up, probably
     return tokenized_full_convo
+
+tokenizing_method = {
+    "wikitext":generate_and_tokenize_prompt_wikiQA,
+    "triviaqa":generate_and_tokenize_prompt_trivialQA,
+    "pubmedqa":generate_and_tokenize_prompt_pubmedQA,
+    "truthfulqa_gen":generate_and_tokenize_prompt_truthfulQA,
+    "commonsense_qa":generate_and_tokenize_prompt_commonsenseQA,
+    # "datologyai_hellaswag":generate_and_tokenize_prompt_datologyai_hellaswag, # not used because this dataset is not available anymore on huggingface
+    "rowan_hellaswag":generate_and_tokenize_prompt_rowan_hellaswag,
+    "sciq":generate_and_tokenize_prompt_sciq,
+    "gsm8k":generate_and_tokenize_prompt_gsm8k,
+    "squadv2":generate_and_tokenize_prompt_squad,
+    "headqa_en":generate_and_tokenize_prompt_headqa,
+    "mmlu":generate_and_tokenize_prompt_mmlu,
+    "arc_challenge":generate_and_tokenize_prompt_ai2_arc,
+}

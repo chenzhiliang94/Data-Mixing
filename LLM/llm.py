@@ -12,27 +12,16 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingA
 import lm_eval
 from lm_eval.models.huggingface import HFLM
 
-from torch.utils.data import DataLoader
-from transformers import DataCollatorForSeq2Seq
-
 import datasets
 import os
-import sys
-import random
 
 import transformers
-from datasets import load_dataset, concatenate_datasets
+from datasets import concatenate_datasets
 import gc
 
 from peft import (
-    LoraConfig,
     get_peft_model,
-    get_peft_model_state_dict,
-    prepare_model_for_kbit_training ,
-    set_peft_model_state_dict,
 )
-
-from transformers import LlamaForCausalLM, LlamaTokenizer
 
 from LLM.tokenize_util import *
 import torch
@@ -100,11 +89,10 @@ lora_target_modules = [
     "v_proj",
 ]
 # llm hyperparams
-train_on_inputs = False  # if False, masks out inputs in loss
+train_on_inputs = True  # if False, masks out inputs in loss
 add_eos_token = False
 group_by_length = False  # faster, but produces an odd training loss curve
 gradient_accumulation_steps = 1
-use_wandb = True
 
 import numpy as np
 
@@ -208,7 +196,7 @@ def sample(dataset, num_datapoints, additional_info, method, data_domain, seed):
     sampled_dataset = dataset.select(indices)
     return sampled_dataset
 
-def extract_data_mixture_and_train(model, tokenizer, train_datasets, val_datasets, data_domains, mixing_ratio, additional_info, total_number_datapoints, seed=42, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100, lora_config=None, callback=[]):
+def extract_data_mixture_and_train(model, tokenizer, train_datasets, val_datasets, data_domains, evaluation_dataset, mixing_ratio, additional_info, total_number_datapoints, seed=42, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100, lora_config=None, callback=[]):
 
 #     '''
 #     model: llama base model
@@ -217,26 +205,10 @@ def extract_data_mixture_and_train(model, tokenizer, train_datasets, val_dataset
 #     data_domains: List of data domain names, should be same size as train_datasets
 #     mixing_ratio: List of mixing ratio, should sum to 1, list size same as train_datasets
 #     additional_information: List of List of IF values for each dataset, for us to do sampling 
-
-    # apply tokenization to all data
-    tokenizing_method = {
-        "wikitext":generate_and_tokenize_prompt_wikiQA,
-        "triviaqa":generate_and_tokenize_prompt_trivialQA,
-        "pubmedqa":generate_and_tokenize_prompt_pubmedQA,
-        "truthfulqa_gen":generate_and_tokenize_prompt_truthfulQA,
-        "commonsense_qa":generate_and_tokenize_prompt_commonsenseQA,
-        # "datologyai_hellaswag":generate_and_tokenize_prompt_datologyai_hellaswag, # not used because this dataset is not available anymore on huggingface
-        "rowan_hellaswag":generate_and_tokenize_prompt_rowan_hellaswag,
-        "sciq":generate_and_tokenize_prompt_sciq,
-        "gsm8k":generate_and_tokenize_prompt_gsm8k,
-        "squadv2":generate_and_tokenize_prompt_squad,
-        "headqa_en":generate_and_tokenize_prompt_headqa,
-        "mmlu":generate_and_tokenize_prompt_mmlu,
-        "arc_challenge":generate_and_tokenize_prompt_ai2_arc,
-    }
     
-    all_sampled_train_data = []
-    all_sampled_val_data = []
+    all_sampled_train_data = [] # training data
+    all_sampled_val_data = [] # same distribution as training data, but validation
+    
     for train_dataset, val_dataset, data_domain, ratio, IF_values in zip(train_datasets, val_datasets, data_domains, mixing_ratio, additional_info):
         
         total_datapt = int(total_number_datapoints * ratio)
@@ -264,11 +236,16 @@ def extract_data_mixture_and_train(model, tokenizer, train_datasets, val_dataset
         all_sampled_val_data.append(sampled_val_data)
     
     combined_train_dataset = concatenate_datasets(all_sampled_train_data)
-    combined_val_dataset = concatenate_datasets(all_sampled_val_data)
-    combined_val_dataset = combined_val_dataset.shuffle(seed=42).select(range(100))
+    # combined_val_dataset = concatenate_datasets(all_sampled_val_data)
+    # combined_val_dataset = combined_val_dataset.shuffle(seed=42).select(range(100)) # this is validation data for training data
+    
     print("length of training data: ", len(combined_train_dataset))
-    output_model_dir = train(model, tokenizer, combined_train_dataset, combined_val_dataset, train_epochs, batch_size, max_step, eval_steps, callback=callback)
-    return output_model_dir
+    if evaluation_dataset is None:
+        print("evaluation dataset not given. This means we are not using evaluation loss. Will just use training data and evaluation loss")
+        evaluation_dataset = combined_train_dataset.shuffle(seed=42).select(range(int(len(combined_train_dataset)/2)))
+    print("length of validation data: ", len(evaluation_dataset))
+    train_results = train(model, tokenizer, combined_train_dataset, evaluation_dataset, train_epochs, batch_size, max_step, eval_steps, callback=callback)
+    return train_results
 
 def extract_data_mixture_and_train_and_evaluate(input_X, evaluation_task : List, model, random_dir, tokenizer, train_datasets, val_datasets, data_domains, mixing_ratio, additional_info, total_number_datapoints, run_name, seed=42, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100, lora_config=None, fix_training_samples=False):
     
@@ -281,21 +258,6 @@ def extract_data_mixture_and_train_and_evaluate(input_X, evaluation_task : List,
 
     # apply tokenization to all data
     # print("tokenizing all data into correct format...")
-    tokenizing_method = {
-        "wikitext":generate_and_tokenize_prompt_wikiQA,
-        "triviaqa":generate_and_tokenize_prompt_trivialQA,
-        "pubmedqa":generate_and_tokenize_prompt_pubmedQA,
-        "truthfulqa_gen":generate_and_tokenize_prompt_truthfulQA,
-        "commonsense_qa":generate_and_tokenize_prompt_commonsenseQA,
-        # "datologyai_hellaswag":generate_and_tokenize_prompt_datologyai_hellaswag, # not used because this dataset is not available anymore on huggingface
-        "rowan_hellaswag":generate_and_tokenize_prompt_rowan_hellaswag,
-        "sciq":generate_and_tokenize_prompt_sciq,
-        "gsm8k":generate_and_tokenize_prompt_gsm8k,
-        "squadv2":generate_and_tokenize_prompt_squad,
-        "headqa_en":generate_and_tokenize_prompt_headqa,
-        "mmlu":generate_and_tokenize_prompt_mmlu,
-        "arc_challenge":generate_and_tokenize_prompt_ai2_arc,
-    }
     
     # sample the correct amount of data from each domain
     # print("iterating through each data domain and sampling the sufficient datapoints")
@@ -546,6 +508,18 @@ def train(model, tokenizer, train_dataset, val_dataset, train_epochs=1, batch_si
 
     trainer.train()
 
+    train_results = {"eval_loss": [
+    log["eval_loss"]
+    for log in trainer.state.log_history
+    if "eval_loss" in log
+    ]}
+    
+    return train_results
+    
+    
+    
+    breakpoint()
+        
 def train_deepspeed(model, tokenizer, train_dataset, val_dataset, output_dir, run_name, train_epochs=1, batch_size=8, max_step=-1, eval_steps=1000, lora_config=None, callback=[]):
     # if torch.cuda.device_count() > 1:
     #     # keeps Trainer from trying its own DataParallelism when more than 1 gpu is available
@@ -640,7 +614,7 @@ def load_data(data_domain):
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "pubmedqa":
-        dataset = datasets.load_dataset("bigbio/pubmed_qa", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets", trust_remote_code=True)
+        dataset = datasets.load_dataset("bigbio/pubmed_qa", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets")
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "truthfulqa_gen":
@@ -652,7 +626,7 @@ def load_data(data_domain):
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "rowan_hellaswag":
-        dataset = datasets.load_dataset("Rowan/hellaswag", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets", trust_remote_code=True)
+        dataset = datasets.load_dataset("Rowan/hellaswag", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets")
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "sciq":
@@ -668,19 +642,19 @@ def load_data(data_domain):
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "headqa":
-        dataset = datasets.load_dataset("dvilares/head_qa", "en", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets", trust_remote_code=True)
+        dataset = datasets.load_dataset("dvilares/head_qa", "en", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets")
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     elif data_domain == "datologyai_hellaswag":
-        dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets", trust_remote_code=True)
+        dataset = datasets.load_dataset("DatologyAI/hellaswag", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets")
         train_dataset = dataset["eval"]
         val_dataset = dataset["eval"]
     elif data_domain == "mmlu":
-        dataset = datasets.load_dataset("cais/mmlu", "all", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets", trust_remote_code=True)
+        dataset = datasets.load_dataset("cais/mmlu", "all", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets")
         train_dataset = dataset["test"]
         val_dataset = dataset["validation"]
     elif data_domain == "arc_challenge":
-        dataset = datasets.load_dataset("allenai/ai2_arc", "ARC-Challenge", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets", trust_remote_code=True)
+        dataset = datasets.load_dataset("allenai/ai2_arc", "ARC-Challenge", cache_dir = "/home/chenzhil/maplecg_nfs/data-mixing/datasets")
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
     else:

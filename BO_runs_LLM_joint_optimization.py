@@ -23,6 +23,7 @@ parser.add_argument("--epochs", help="epochs", default=1)
 parser.add_argument("--trials", help="trials", default=1)
 parser.add_argument("--evaluation_cuda", help="evaluation_cuda", default=0)
 parser.add_argument("--eval_tasks", help="eval_tasks") # see task_metrics for different tasks
+parser.add_argument("--eval_method", help="eval_method")
 parser.add_argument("--experiments_setting", help="either ood or in_dist")
 parser.add_argument("--time_limit", help="time_limit")
 parser.add_argument("--lora_rank", help="max lora_rank")
@@ -37,8 +38,9 @@ parser.add_argument("--save_name", help="save_name")
 parser.add_argument("--seed", help="seed value for single eval", type=int)
 parser.add_argument("--limit", help="no. of samples for performance evaluation. Default is 100", default=100)
 parser.add_argument("--run_BO_on", help="all or model or data or single_eval", default="all")
-
-
+parser.add_argument("--training_batch", help="training_batch", type=int)
+parser.add_argument("--evaluation_batch", help="evaluation_batch", type=int)
+                    
 parser.add_argument("--dkl_feature_dim", help="dkl feature dim", type=int, default=32)
 parser.add_argument("--dkl_hidden", help="dkl hidden layers", type=int, default=64)
 parser.add_argument("--dkl_freeze_nn", help="dkl freeze nn", type=bool, default=False)
@@ -63,6 +65,7 @@ class TimerCallback(TrainerCallback):
 args = vars(parser.parse_args())
 print("command-line args: ", args)
 
+eval_method = str(args["eval_method"])
 model=str(args["model"])
 setting=(args["experiments_setting"])
 time_limit = int(args["time_limit"])
@@ -84,12 +87,22 @@ save_name = str(args["save_name"])
 acq_function = str(args["acq_function"])
 optimize_method = str(args["optimize_method"])
 
-task_metrics = {
+training_domain_metrics = {
   "commonsense_qa": "acc,none",
   "gsm8k": "exact_match,strict-match",
-  "headqa_en": "acc,none",
   "rowan_hellaswag": "acc,none",
-  "pubmedqa": "acc,none",
+  "sciq": "acc_norm,none",
+  "triviaqa": "exact_match,remove_whitespace",
+  "truthfulqa_gen": "bleu_acc,none",
+  "wikitext": "word_perplexity,none",
+  "mmlu": "acc,none",
+  "arc_challenge": "acc,none"
+}
+
+eval_metrics = {
+  "commonsense_qa": "acc,none",
+  "gsm8k": "exact_match,strict-match",
+  "rowan_hellaswag": "acc,none",
   "sciq": "acc_norm,none",
   "triviaqa": "exact_match,remove_whitespace",
   "truthfulqa_gen": "bleu_acc,none",
@@ -99,7 +112,7 @@ task_metrics = {
 }
 
 # set up training data (depending if we want ood)
-data_domains_initial = list(task_metrics.keys())
+data_domains_initial = list(training_domain_metrics.keys())
 print("current eval task: ", tasks)
 if setting == "ood":
     data_domains =  [x for x in data_domains_initial if x not in tasks] # remove training domain that is in task
@@ -109,14 +122,14 @@ else:
 # set up evaluation tasks (and weights, if we have more than one evaluation task)
 evaluation_task = {}
 for task, weight in zip(tasks, evaluation_weights):
-    evaluation_task[task] = (float(weight), task_metrics[task])
+    evaluation_task[task] = (float(weight), eval_metrics[task])
 
 print("evaluation tasks and weights: ", evaluation_task)
 
-train_epochs = 1
-training_batch = 4
-evaluation_batch = 8
-evaluation_steps = 50
+train_epochs = int(args["epochs"])
+training_batch = int(args)
+evaluation_batch = int(args["evaluation_batch"])
+evaluation_steps = 25
 final_info_stored = {"command line args": args,
                     "training domain": data_domains,
                     "evaluation domain": tasks,
@@ -164,6 +177,7 @@ for sample_method in sample_methods: # random sampling
                                                                         BO_run = BO_run,
                                                                         total_data = total_data,
                                                                         evaluation_task = evaluation_task,
+                                                                        eval_method=eval_method,
                                                                         BO_params = BO_params,
                                                                         sampling_method = sample_method, 
                                                                         train_epochs=train_epochs, 
@@ -171,8 +185,8 @@ for sample_method in sample_methods: # random sampling
                                                                         evaluation_batch=evaluation_batch,
                                                                         eval_steps=evaluation_steps,
                                                                         limit=limit,
-                                                                        seed=42,
-                                                                        model_id="meta-llama/Meta-Llama-3-8B-Instruct",
+                                                                        seed=seed,
+                                                                        model_id=model_id,
                                                                         what_to_optimize="both")
             
          
