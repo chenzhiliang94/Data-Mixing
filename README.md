@@ -1,6 +1,7 @@
 1. pip install -r requirements.txt
 2. Read through the command in commands_BO_full.sh and BO_runs_LLM_joint_optimization.py
 3. To run the code, need to have access to our servers.
+4. `commands_BO_run_all.sh` contains the script to run.
 
 # Deprecated; ignore.
 1. To get the data, first create a `data` folder in the home repo.
