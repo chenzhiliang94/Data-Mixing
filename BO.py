@@ -418,7 +418,7 @@ def joint_opt_BO_LLM_generalized(
         input_X_between_0_1.append(16/lora_max_num_layers)
         input_X += [1]*5                                  # layer mask
         input_X_between_0_1 += [1]*5
-        input_X.append(lora_rank_max)                                # rank
+        input_X.append(72)                                # rank
         input_X_between_0_1.append(72/lora_rank_max)
         input_X.append(0.05)                              # dropout
         input_X_between_0_1.append(0.5)
@@ -438,7 +438,7 @@ def joint_opt_BO_LLM_generalized(
         
         input_X += [1]*5                                  # layer mask
         input_X_between_0_1 += [1]*5
-        input_X.append(lora_rank_max)                                # rank
+        input_X.append(72)                                # rank
         input_X_between_0_1.append(72/lora_rank_max)
         input_X.append(0.05)                              # dropout
         input_X_between_0_1.append(0.5)
@@ -703,6 +703,166 @@ def joint_opt_BO_LLM_generalized(
         input_X = process_candidate(candidate[0])
 
     return GP_input, observed_output, gp
+
+def collect_results_for_random_configs(
+        lora_rank_max: int,
+        data_domains: list,
+        num_random_configs: int,
+        total_data: int,
+        evaluation_task: dict,
+        eval_method: str,
+        model_id : str,
+        sampling_method="random",
+        train_epochs: int = 1,
+        training_batch: int = 8,
+        max_steps=-1,
+        eval_steps=100,
+        seed=42,):
+    """
+
+    Unified Bayesian Optimization loop for:
+      - optimizing only data mixing ratios (optimize_data=True, optimize_lora=False)
+      - optimizing only LoRA parameters (optimize_data=False, optimize_lora=True)
+      - optimizing data + LoRA parameters (both True)
+    
+    fixed_data_ratio: list of floats summing to 1. Used when optimize_data=False
+    default_lora_config: dictionary with keys ['num_layers_to_apply', 'layer_mask', 'rank', 'dropout',] 
+        used when optimize_lora=False
+    """
+    
+    # -------------------------
+    # Tokenizer & model
+    # -------------------------
+    tokenizer, model = get_tokenizer_and_model(model_id=model_id)
+    lora_max_num_layers = len(model.model.layers)
+    lora_rank_max = 128  # adjust as needed
+    
+    # -------------------------
+    # Load training datasets
+    # -------------------------
+    train_datasets, val_datasets = [], []
+    for domain in data_domains:
+        train_dataset, val_dataset = load_data(data_domain=domain)
+        train_datasets.append(train_dataset)
+        val_datasets.append(val_dataset)
+        
+    # -------------------------
+    # Load evaluation datasets if our performance metric is eval_loss, else this is None
+    # -------------------------
+    all_sampled_evaluation_data = None
+    if eval_method == "eval_loss":
+        evaluation_datasets_and_weights = []
+        for domain in evaluation_task.keys():
+            _ , val_dataset = load_data(data_domain=domain)
+            evaluation_datasets_and_weights.append((val_dataset, domain, evaluation_task[domain][0])) # 0-th index is weight
+        all_sampled_evaluation_data = [] # same distribution as training data, but validation
+        evaluation_datasets_and_weights
+        print("evaluation dataset:")
+        for eval_data, data_domain, weight in evaluation_datasets_and_weights:
+            print("data domain: ", data_domain, " weight: ", weight)
+            sampled_val_data = sample(eval_data, int(total_data * weight/10), additional_info=None, method="random", data_domain=data_domain, seed=seed)
+            sampled_val_data = sampled_val_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
+                                                                                "add_eos_token": add_eos_token,
+                                                                                "train_on_inputs": train_on_inputs,
+                                                                                })
+            sampled_val_data = sampled_val_data.select_columns(['input_ids', 'attention_mask', 'labels'])
+            all_sampled_evaluation_data.append(sampled_val_data)
+        all_sampled_evaluation_data = concatenate_datasets(all_sampled_evaluation_data)
+
+    # -------------------------
+    # Generate random configs to evaluate
+    # -------------------------
+    def random_generator():
+        result = []
+
+        # data mixture
+        mixture = np.random.dirichlet(np.ones(len(data_domains))).tolist()
+        result.extend(mixture)
+
+        # model configs
+        result.append(random.randint(1, lora_max_num_layers))   # num_layers_to_apply, between 1 and lora_max_num_layers
+        
+        layer_mask = [random.randint(0, 1) for _ in range(5)]   # layer mask
+        while sum(layer_mask) == 0:
+            layer_mask = [random.randint(0, 1) for _ in range(5)]   # ensure that at least one layer is selected
+        result.extend(layer_mask)  
+
+        result.append(random.randint(1, lora_rank_max))          # rank, between 1 and lora_rank_max
+        result.append(random.uniform(0.0, 0.1))                  # dropout, between 0 and 0.1
+        result.append(random.randint(1, 48))                         # alpha, between 1 and 48
+        result.append(random.randint(0, 1))                          # reverse, either 0 or 1
+
+        return result
+    
+    print("Generating random configurations to evaluate...")
+    list_input_X = []
+    for i in range(num_random_configs):
+        input_X = random_generator()
+        list_input_X.append(input_X)
+
+    print("Generated ", len(list_input_X), " random configurations.")
+    print("First 3 random configurations: ")
+    print(*list_input_X[:3], sep="\n")
+
+    # -------------------------
+    # Evaluate random configs loop
+    # -------------------------
+    results_list = []
+    all_influences = [None for _ in data_domains]
+
+    for i in tqdm(range(num_random_configs)):
+        print("\n\n\n")
+        print("======== Iteration: ", i, " ==========")
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        input_X = list_input_X[i]
+
+        tokenizer, model = get_tokenizer_and_model(model_id=model_id)
+        lora_config = None
+
+        idx = len(data_domains)
+        mixing_ratio = input_X[:idx]
+        lora_config = arrange_lora_config(
+            lora_r=input_X[-4],
+            lora_dropout=input_X[-3],
+            num_layers_to_apply=input_X[idx],
+            five_dim_vector=input_X[idx+1:idx+1+5],
+            lora_alpha = input_X[-2],
+            lora_reverse = input_X[-1],
+            max_num_layers = lora_max_num_layers,
+        )
+        
+        model = get_peft_model(model, lora_config)
+        model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
+
+        print_lora_params(model, "LoRA parameters BEFORE training")
+        print_non_lora_params(model, "Non-LoRA parameters BEFORE training")
+        # Train & evaluate
+        train_results = extract_data_mixture_and_train_and_evaluate(
+            input_X=input_X,
+            evaluation_task=evaluation_task,
+            model=model,
+            tokenizer=tokenizer,
+            train_datasets=train_datasets,
+            val_datasets=val_datasets,
+            data_domains=data_domains,
+            evaluation_dataset=all_sampled_evaluation_data, # evaluation data
+            mixing_ratio=mixing_ratio,
+            additional_info=all_influences,
+            total_number_datapoints=total_data,
+            method=sampling_method,
+            train_epochs=train_epochs,
+            batch_size=training_batch,
+            max_step=max_steps,
+            eval_steps=eval_steps,
+            seed=seed
+        )
+        print_lora_params(model, "LoRA parameters AFTER training (should be changed)")
+        print_non_lora_params(model, "Non-LoRA parameters AFTER training (should be unchanged)")
+
+    return results_list
+
+# ============================================================================================================================================================================================================================================================
 
 def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_to_apply, default_dropout, default_alpha, time_callback, data_domains : List[str], random_dir : str, BO_run : int, total_data : int, evaluation_cuda : str, evaluation_task : dict, ucb_beta, trial_number, sampling_method = "random", train_epochs : int = 1, training_batch : int = 8, evaluation_batch : int = 4, printout=True, max_steps = -1, eval_steps=100, limit=100, model_id = "LLM/llama_8b_instruct", seed = 42, output_dir= "results/"):
     
