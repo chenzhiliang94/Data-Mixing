@@ -127,7 +127,7 @@ for task, weight in zip(tasks, evaluation_weights):
 print("evaluation tasks and weights: ", evaluation_task)
 
 train_epochs = int(args["epochs"])
-training_batch = int(args)
+training_batch = int(args["training_batch"])
 evaluation_batch = int(args["evaluation_batch"])
 evaluation_steps = 25
 final_info_stored = {"command line args": args,

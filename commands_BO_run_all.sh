@@ -1,6 +1,6 @@
 #!/bin/bash
 export TQDM_DISABLE=1
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=3
 
 # ----------------------- #
 # Shared configuration
@@ -9,31 +9,35 @@ ITER=50
 NUM_DATA=10000
 EPOCHS=1
 TRIALS=3
-EXP_SETTING=in_dist # ood or in_dist
+EXP_SETTING=ood # ood or in_dist
 TIME_LIMIT=1000 # usually this is not a limiting factor because we will finish 1 epoch
 LORA_RANK=128
-LIMIT=0 # how many datapoints to evaluation in llm-harness. 0 means all points.
+LIMIT=100 # how many datapoints to evaluation in llm-harness. 0 means all points.
 RUN_ON=general # optimize both components
-TRAIN_BATCH=16
-EVAL_BATCH=16
-EVAL_METHOD=performance # IMPORTANT. eval_loss or performance (either take loss or performance)
-MODEL=qwen-7b # IMPORTANT
+TRAIN_BATCH=32
+EVAL_BATCH=32
+EVAL_METHOD=eval_loss # IMPORTANT. eval_loss or performance (either take loss or performance)
+MODEL=llama-8b # IMPORTANT
 UCB_BETA=20
-OPT_METHOD=mixed # related to BO for mixed problems. No need to change.
-INFO_PRINTOUT=evaluate_on_loss # additional info to identify the experiment. Only affects the output file name.
+OPT_METHOD=random # IMPORTANT related to BO for mixed problems. No need to change.
+INFO_PRINTOUT=evaluate_on_loss_RANDOM_NO_BO # additional info to identify the experiment. Only affects the output file name.
 ACQ_FUNC=ucb # EI or ucb
 
 # ----------------------- #
 # Task groups
 # ----------------------- #
-group1=("arc_challenge" "gsm8k" "truthfulqa_gen" "commonsense_qa" "mmlu" "triviaqa")
-
+# group1=("triviaqa" "mmlu")
+# group1=("arc_challenge")
+# group1=("winogrande")
+group1=("arc_challenge" "truthfulqa_gen" "gsm8k" "commonsense_qa" "mmlu" "triviaqa")
 # ----------------------- #
 # Function to run a job
 # ----------------------- #
 run_task() {
     local task=$1
     local seed=$RANDOM
+    echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+    echo "EVAL_METHOD=$EVAL_METHOD"
     echo "MODEL=$MODEL"
     echo "ACQ=$ACQ_FUNC"
     echo "INFO=$INFO_PRINTOUT"
