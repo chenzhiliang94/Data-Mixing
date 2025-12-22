@@ -29,7 +29,7 @@ parser.add_argument("--experiments_setting", help="either ood or in_dist")
 parser.add_argument("--time_limit", help="time_limit")
 parser.add_argument("--lora_rank", help="max lora_rank")
 parser.add_argument("--model", help="model name or path")
-parser.add_argument("--JoBS", help="whether to apply scaling law", default=False)
+parser.add_argument("--JoBS", help="whether to apply scaling law", type=bool, default=False)
 
 # BO stuff, 
 parser.add_argument("--acq_function", help="acquisition function")
