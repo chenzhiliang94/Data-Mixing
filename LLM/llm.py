@@ -223,11 +223,11 @@ def extract_data_mixture_and_train(model, tokenizer, train_datasets, val_dataset
         sampled_train_data = sampled_train_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
-                                                                                   }, keep_in_memory=False)
+                                                                                   }, keep_in_memory=True)
         sampled_val_data = sampled_val_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
-                                                                                   }, keep_in_memory=False)
+                                                                                   }, keep_in_memory=True)
         
         sampled_train_data = sampled_train_data.select_columns(['input_ids', 'attention_mask', 'labels'])
         sampled_val_data = sampled_val_data.select_columns(['input_ids', 'attention_mask', 'labels'])

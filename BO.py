@@ -1,18 +1,20 @@
-from botorch.models import SingleTaskGP, MixedSingleTaskGP
-from botorch.acquisition import UpperConfidenceBound, LogExpectedImprovement
+from botorch.models import SingleTaskGP, MixedSingleTaskGP, SingleTaskMultiFidelityGP
+from botorch.acquisition import UpperConfidenceBound, LogExpectedImprovement, PosteriorMean, qKnowledgeGradient
+from botorch.acquisition.acquisition import AcquisitionFunction
 from botorch.models import SingleTaskGP
 from botorch.fit import fit_gpytorch_mll
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.optim import optimize_acqf, optimize_acqf_mixed_alternating
 from botorch.models.transforms.outcome import Standardize
 from botorch.models.transforms import Normalize
+
+import time
 from LLM.llm import extract_data_mixture_and_train_and_evaluate
 import shutil
 import torch
-from itertools import product
 import numpy as np
 import random
-from typing import Optional, List, Tuple
+from typing import List, Tuple
 import gc
 import os
 os.environ["HF_ALLOW_CODE_EXECUTION"] = "1"
@@ -279,8 +281,13 @@ def sample_random_mask(n=5):
     
     return mask
 
-def randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, lora_rank_max):
-    random.seed() 
+def randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, lora_rank_max, BO_params, seed=None):
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+    else:
+        random.seed()
+        np.random.seed()
     if what_to_optimize == "data":
         k = len(data_domains)
         input_X = np.random.dirichlet([1.0] * k).tolist()
@@ -323,8 +330,6 @@ def randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, 
         input_X = np.random.dirichlet([1.0] * k).tolist()
         input_X_between_0_1 = input_X[:] # already between 0 and 1
         
-        print("data mixture random: ", input_X)
-        
         # num_layers_to_apply
         num_layers = random.randint(1, lora_max_num_layers)
         input_X.append(num_layers)
@@ -355,9 +360,119 @@ def randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, 
         input_X.append(reverse)
         input_X_between_0_1.append(reverse)
         
-        print("randomly generated all inputs: ",input_X)
-    return input_X, input_X_between_0_1
+    print("We are at initial step. BO_params[\"optimize_method\"]:", BO_params["optimize_method"])
+    fidelity = None
+    if BO_params["optimize_method"] == "multi_fidelity" or BO_params["optimize_method"] == "multi_fidelity_KG":
+        fidelity = random.choice([0, 1])
+        print("fidelity is required. Randomly generating fidelity: ", fidelity)
+    else:
+        print("fidelity is not required")
+    return input_X, input_X_between_0_1, fidelity
+
+# cost per fidelity
+def cost_fn(X):
+    fidelity = X[..., -1]          # assuming last column is fidelity
+    return 1 + fidelity         # Example (you choose your own)
+
+class CostScaledLogEI(AcquisitionFunction):
+    def __init__(self, model, best_f, cost_fn, current_itr):
+        super().__init__(model)
+        self.log_ei = LogExpectedImprovement(model=model, best_f=best_f)
+        self.cost_fn = cost_fn  # cost_fn: X -> cost
+        self.current_itr = current_itr
+        
+    def forward(self, X):
+        logei_val = self.log_ei(X)
+        cost = self.cost_fn(X)
+
+        return - logei_val / cost.squeeze(-1) # divide acquisition value with the cost to get improvement per cost
+
+class CostScaledUCB(AcquisitionFunction):
+    def __init__(self, model, beta, cost_fn):
+        super().__init__(model)
+        self.ucb = UpperConfidenceBound(model=model, beta=beta)
+        self.cost_fn = cost_fn  # X -> cost
+
+    def forward(self, X):
+        """
+        X: batch_shape x q x d
+        """
+        ucb_val = self.ucb(X)              # shape: batch_shape
+        cost = self.cost_fn(X).squeeze(-1) # shape: batch_shape
+
+        return ucb_val / cost
+
+class CostScaledKG(AcquisitionFunction):
+    def __init__(
+        self,
+        model,
+        cost_fn,
+        num_fantasies,
+        current_max_pmean,
+        sampler,
+    ):
+        super().__init__(model)
+
+        self.num_fantasies = num_fantasies
+
+        self.kg = qKnowledgeGradient(
+            model=model,
+            num_fantasies=num_fantasies,
+            current_value=current_max_pmean,
+            sampler=sampler,
+        )
+
+        self.cost_fn = cost_fn
+
+    def forward(self, X):
+        """
+        X: batch_shape x (1 + num_fantasies) x d
+        """
+
+        # KG value: scalar per batch
+        kg_val = self.kg(X)  # shape: batch_shape
+
+        # Cost of the REAL point only
+        real_X = X[..., :1, :]                     # batch x 1 x d
+        cost = self.cost_fn(real_X)                # batch x 1 or batch
+        cost = cost.squeeze(-1).squeeze(-1)        # batch
+
+        return kg_val / cost
     
+def print_inputs(
+    input_X,
+    data_domains: List[str],
+):
+    idx = len(data_domains)
+    mixing_ratio = input_X[:idx]
+    lora_r=input_X[-4],
+    lora_dropout=input_X[-3],
+    num_layers_to_apply=input_X[idx],
+    five_dim_vector=input_X[idx+1:idx+1+5],
+    lora_alpha = input_X[-2],
+    lora_reverse = input_X[-1],
+    # check lengths
+    assert len(data_domains) == len(mixing_ratio), "length of data domains and mixing ratio should be the same"
+    
+    print("=== Candidate ===")
+    
+    print("\nData Domains and Mixing Ratios:")
+    for domain, ratio in zip(data_domains, mixing_ratio):
+        if isinstance(ratio, torch.Tensor):
+            ratio = ratio.item()
+        print(f"  {domain}: {round(ratio,3)}")
+    
+    print("\nLoRA Parameters:")
+    print(f"  lora_r: {lora_r}")
+    print(f"  lora_dropout: {lora_dropout}")
+    print(f"  num_layers_to_apply: {num_layers_to_apply}")
+    print(f"  five_dim_vector: {five_dim_vector}")
+    print(f"  lora_alpha: {lora_alpha}")
+    print(f"  lora_reverse: {lora_reverse}")
+    
+    print("=========================\n")
+    
+
 def arrange_lora_config(lora_r, lora_dropout, num_layers_to_apply, five_dim_vector, lora_alpha, lora_reverse : bool, max_num_layers):
     '''
     lora_r: float
@@ -499,7 +614,8 @@ def joint_opt_BO_LLM_generalized(
     # -------------------------
     # Randomly initialize input_X
     # -------------------------
-    input_X, input_X_between_0_1 = randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, lora_rank_max)
+    # fidelity is a running current fidelity level if multi-fidelity BO is used
+    input_X, input_X_between_0_1, fidelity = randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, lora_rank_max, BO_params, seed=42) # keep seed fixed for initial point
     
     # -------------------------
     # Bounds
@@ -517,18 +633,25 @@ def joint_opt_BO_LLM_generalized(
         lower_bound += [1/lora_max_num_layers+0.01] + [0]*5 + [1/lora_rank_max+0.01] + [0.0] + [1/48+0.01] + [0.0]
         upper_bound += [1] + [1]*5 + [1] + [1] + [1] + [1]
 
+    # add to bounds for fidelity if needed
+    if fidelity is not None:
+        lower_bound.append(0.0)
+        upper_bound.append(1.0)
+    
     bounds = torch.stack([torch.tensor(lower_bound), torch.tensor(upper_bound)])
+        
 
     # -------------------------
     # Historical GP observations
     # -------------------------
-    GP_input, observed_output = [], []
+    full_input, GP_input, observed_output = [], [], []
     all_influences = [None for _ in data_domains]
 
     # -------------------------
     # Candidate processing
     # input candidate is normalized
     # but we want to project them to the real values
+    # note that this does not include fidelity
     # -------------------------
     def process_candidate(candidate):
         processed_candidate = []
@@ -591,19 +714,40 @@ def joint_opt_BO_LLM_generalized(
     # -------------------------
     max_performance_so_far = float('-inf')
     results_list = []
-
-    for i in tqdm(range(BO_run)):
+    full_train_results_list = []
+    all_fidelity_levels = []
+    count_low_fidelity = 0
+    count_high_fidelity = 0
+    pbar = tqdm(total=BO_run)
+    itr = 0
+    
+    # whether to apply JoBS
+    if BO_params["to_apply_joBS"]:
+        # TBD
+        # 1. load the performance predictor (we might want to add an arg to load a predictor trained using different number of samples)
+        # 2. Edit the BO_run necessarily (this is to reduce the number of BO_run depending on number of data used for step 1).
+        # 3. Create some kind of callback here (to make early loss or performance evaluations; or a sequence of it) so that it can be passed into the training function
+        # 4. We DO NOT change the original time_callback variable to reduce the time. This is because we want to track the real performance gain from JoBS.
+        #    Our code handles this naturally anyways.
+        pass
+            
+    
+    while itr < BO_run:
         print("\n\n\n")
-        print("======== BO iteration: ", i, " ==========")
+        print("======== BO iteration: ", itr, " ==========")
         torch.manual_seed(seed)
         np.random.seed(seed)
         tokenizer, model = get_tokenizer_and_model(model_id=model_id)
         lora_config = None
         discrete_dims = None
+        
+        print_inputs(input_X, data_domains)
+        
         # Build LoRA config if optimizing LoRA
         if what_to_optimize == "data":
             lora_config = default_lora_config # default LoRA
             mixing_ratio = input_X
+            discrete_dims = {}
         elif what_to_optimize == "model":
             
             discrete_dims = {
@@ -647,13 +791,38 @@ def joint_opt_BO_LLM_generalized(
                 lora_reverse = input_X[-1],
                 max_num_layers = lora_max_num_layers,
             )
-        
+        if fidelity is not None:
+            discrete_dims[len(input_X)] = [0,1] # fidelity is discrete too
+            
         model = get_peft_model(model, lora_config)
         model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
-        print_lora_params(model, "LoRA parameters BEFORE training")
-        print_non_lora_params(model, "Non-LoRA parameters BEFORE training")
-        # Train & evaluate
+        # print_lora_params(model, "LoRA parameters BEFORE training")
+        # print_non_lora_params(model, "Non-LoRA parameters BEFORE training")
+        
+        if fidelity is not None:
+            if fidelity == 0.0:
+                print("lower fidelity requested")
+                itr += 0.5
+                pbar.update(0.5)
+                count_low_fidelity += 1
+            else:
+                print("higher fidelity requested")
+                itr += 1
+                pbar.update(1)
+                count_high_fidelity += 1
+        else:
+            itr +=1
+            pbar.update(1)
+            count_high_fidelity += 1
+        
+        # before we run training, probably need to insert the callback for JoBS if needed
+        # also, we need to edit the code in extract_data_mixture_and_train function to make train_results store the small training step performance/loss
+        if BO_params["to_apply_joBS"]:
+            # TBD
+            pass
+            
+        # Train & evaluate 
         train_results = extract_data_mixture_and_train(
             model=model,
             tokenizer=tokenizer,
@@ -673,12 +842,14 @@ def joint_opt_BO_LLM_generalized(
             callback=[time_callback],
             seed=seed
         )
-        print_lora_params(model, "LoRA parameters AFTER training (should be changed)")
-        print_non_lora_params(model, "Non-LoRA parameters AFTER training (should be unchanged)")
-
-        # Evaluate
+        # print_lora_params(model, "LoRA parameters AFTER training (should be changed)")
+        # print_non_lora_params(model, "Non-LoRA parameters AFTER training (should be unchanged)")
+        
+        # Call evaluation at the end on the trained model. We actually do not need this for JoBS.
+        # However, we still do it because we need to know how well the model is performing (for result display purpose)
         model.eval()
-        observed_performance = None
+        observed_performance = None # what is observed, possibly low-fid
+        best_possible_performance = None # what is high-fid performance if low-fid is used
         if eval_method == "performance": # performance
             print("evaluating with task performance...")
             if limit == 0:
@@ -690,36 +861,88 @@ def joint_opt_BO_LLM_generalized(
                 if task=="wikitext": p=-p
                 perf += p*weight*scaling_weight
             observed_performance = perf
+            best_possible_performance = perf
         elif eval_method == "eval_loss": # if we want to minimize loss
-            observed_performance = - min(train_results["eval_loss"])
-            
+            if fidelity == 0: # lower fidelity
+                vals = train_results["eval_loss"]
+
+                half = len(vals) // 2          # first 50%
+                observed_performance = - min(vals[:half])
+                best_possible_performance = - min(train_results["eval_loss"])
+            else:
+                observed_performance = - min(train_results["eval_loss"])
+                best_possible_performance = - min(train_results["eval_loss"])
         else:
             assert False, "eval_method not properly set."
+            
+        # The next section of code is the most important
+        # we will probably want to extract the information from train_results and use performance predictor to predict
+        if BO_params["to_apply_joBS"]:
+            # TBD
+            # 1. extract the small training step performance or loss from train_results
+            # 2. then use performance predictor to predict the final performance and assign it to observed_performance
+            # observed_performance = ...
+            # observed performance is what will be assigned to the GP later on.
+            pass
         
         # max performance
-        max_performance_so_far = max(max_performance_so_far, observed_performance)
+        max_performance_so_far = max(max_performance_so_far, best_possible_performance)
+        full_train_results_list.append(best_possible_performance)
         results_list.append(observed_performance)
-        print("BO observations: ", results_list)
-        print("current iteration performance: ", observed_performance)
+        print("current iteration observed (possibly low-fid or predicted) performance: ", observed_performance)
+        print("current iteration best possible performance (full train run): ", best_possible_performance)
         print("max performance so far: ", max_performance_so_far)
-
+        print("BO observations: ", results_list)
+        
+        # append fidelity to current inputs to GP here if fidelity is given
+        if fidelity is not None:
+            input_X_between_0_1.append(fidelity)
+            all_fidelity_levels.append(fidelity)
         GP_input.append(input_X_between_0_1)
+        full_input.append(input_X)
+        
+        # append low fidelity observation if necessary
         observed_output.append(observed_performance)
 
         # Fit GP
-        #gp = SingleTaskGP(torch.DoubleTensor(GP_input), torch.DoubleTensor(observed_output).reshape(-1,1), outcome_transform=Standardize(m=1))
-        gp = MixedSingleTaskGP(torch.DoubleTensor(GP_input), torch.DoubleTensor(observed_output).reshape(-1,1), discrete_dims, outcome_transform=Standardize(m=1), input_transform=Normalize(d=len(input_X)))
+        if fidelity is not None: # multi-fidelity
+            print("creating a GP: SingleTaskMultiFidelityGP")
+            gp = SingleTaskMultiFidelityGP(torch.DoubleTensor(GP_input), torch.DoubleTensor(observed_output).reshape(-1,1), data_fidelities=[len(input_X_between_0_1)-1], outcome_transform=Standardize(m=1), input_transform=Normalize(d=len(input_X_between_0_1)))
+        else: # single fidelity
+            print("creating a GP: MixedSingleTaskGP")
+            gp = MixedSingleTaskGP(torch.DoubleTensor(GP_input), torch.DoubleTensor(observed_output).reshape(-1,1), discrete_dims, outcome_transform=Standardize(m=1), input_transform=Normalize(d=len(input_X_between_0_1)))
         
         # only fit to GP if not random search
         if BO_params["optimize_method"] != "random":
+            print("fitting GP to data since optimize_method is not random")
             fit_gpytorch_mll(ExactMarginalLogLikelihood(gp.likelihood, gp))
 
         # Suggest next candidate
         if BO_params["acq_function"] == "ucb":
-            acq = UpperConfidenceBound(gp, beta=BO_params["ucb_beta"]/(2*(i+1)**0.5))
+            acq = UpperConfidenceBound(gp, beta=BO_params["ucb_beta"]/(2*(itr+1)**0.5))
         if BO_params["acq_function"] == "EI":
             acq = LogExpectedImprovement(gp, best_f=max_performance_so_far)
+        if BO_params["optimize_method"] == "multi_fidelity":
+           
+            acq = CostScaledUCB(model=gp, beta=BO_params["ucb_beta"]/(2*(itr+1)**0.5), cost_fn=cost_fn)
+        if BO_params["optimize_method"] == "multi_fidelity_KG":
+            print("building KG acq function")
+
+            num_fantasies = 64
+            # base KG
+            qKG = qKnowledgeGradient(gp, num_fantasies=num_fantasies)
+        
+            # get current best posterior mean
+            argmax_pmean, max_pmean = optimize_acqf(
+                acq_function=PosteriorMean(gp),
+                bounds=bounds,
+                q=1,
+                num_restarts=20,
+                raw_samples=2048,
+            )
             
+            acq = CostScaledKG(model=gp, cost_fn=cost_fn, num_fantasies=num_fantasies, current_max_pmean=max_pmean, sampler=qKG.sampler)
+
         # constraints on data mixing ratio
         A = [1.0]*len(data_domains)
         x = list(range(len(data_domains)))
@@ -737,37 +960,81 @@ def joint_opt_BO_LLM_generalized(
                 candidate, _ = optimize_acqf(acq, bounds=bounds, q=1, num_restarts=5, raw_samples=1024,
                                             equality_constraints=[(torch.tensor(x), torch.tensor(A), 1)])
         
-        if BO_params["optimize_method"] == "mixed":
-            print("acq optimization method is mixed")
+        if BO_params["optimize_method"] == "mixed" or BO_params["optimize_method"] == "multi_fidelity" or  BO_params["optimize_method"] == "multi_fidelity_KG":
+            
+            print("acq optimization method is mixed (alternating discrete and continuous)")
             if what_to_optimize == "data": # sum to 1
-                candidate, _ = optimize_acqf_mixed_alternating(acq, bounds=bounds, q=1, num_restarts=20, raw_samples=1024,
+                candidate, acq_value = optimize_acqf_mixed_alternating(acq, bounds=bounds, q=1, num_restarts=20, raw_samples=1024,
                                             equality_constraints=[(torch.tensor(x), torch.tensor(A), 1)])
             if what_to_optimize == "model": # no constraints
-                # feature choice for these indices, 1 to 6 are binary decisions
-                candidate, _ = optimize_acqf_mixed_alternating(acq, bounds=bounds, q=1, num_restarts=20, raw_samples=1024, discrete_dims=discrete_dims)
+                candidate, acq_value = optimize_acqf_mixed_alternating(acq, bounds=bounds, q=1, num_restarts=20, raw_samples=1024, discrete_dims=discrete_dims)
                 
             if what_to_optimize == "both": # sum to 1 for data too
-                # feature choice for these indices, 1 to 6 are binary decisions
-                candidate, _ = optimize_acqf_mixed_alternating(acq, bounds=bounds, q=1, num_restarts=20, raw_samples=1024, discrete_dims=discrete_dims,
-                                            equality_constraints=[(torch.tensor(x), torch.tensor(A), 1)])
+                t_prev = time.time()
+                q=1
+                if BO_params["optimize_method"] == "multi_fidelity_KG":
+                    q = 1 + 64 # for KG, we need to add one more batch
+                    # KG cannot used mixed
+                    candidate, acq_value = optimize_acqf(
+                        acq_function=acq,
+                        bounds=bounds,
+                        q=q,
+                        num_restarts=20,
+                        raw_samples=1024,
+                    )
+                    candidate = candidate[0:1, :]
+                else: # normal mixed BO
+                    candidate, acq_value = optimize_acqf_mixed_alternating(acq, bounds=bounds, q=q, num_restarts=20, raw_samples=1024, discrete_dims=discrete_dims,
+                                                equality_constraints=[(torch.tensor(x), torch.tensor(A), 1)])
+                
+                
+                t_now = time.time()
+                print(f"Time taken to perform acquisition optimization: {t_now - t_prev:.4f} seconds")
+                
+                if not BO_params["optimize_method"] == "multi_fidelity_KG":
+                    # Suppose X_sampled is a tensor of shape [n_points, d]
+                    # Example: 5 random points within bounds
+                    X_sampled = torch.rand(5, bounds.shape[1]) * (bounds[1] - bounds[0]) + bounds[0]
+                    X_sampled = torch.tensor(X_sampled, dtype=torch.double)
+                    # Evaluate acquisition
+                    acq_values = acq(X_sampled.unsqueeze(1))
+
+                    print("Sampled points and acquisition values for multi fidelity:")
+                    for x, val in zip(X_sampled, acq_values):
+                        print(f"X = {x.tolist()}  →  acq = {val.item()}")
+    
+            # remove last element fidelity for processing below
+            if fidelity is not None:
+                fidelity = round(candidate[0][-1].item())
+                candidate = candidate[:, :-1]
         
         if BO_params["optimize_method"] == "random":
-            candidate, input_X_between_0_1 = randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, lora_rank_max)
-            candidate = torch.tensor([input_X_between_0_1], dtype=torch.double)
-            print("random input_X_between_0_1 generated (for debugging purposes): ", input_X_between_0_1)
+            print("acq optimization method is random sampling")
+            _, candidate, fidelity = randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, lora_rank_max, BO_params=BO_params, seed=None) # fidelty is None here for sure
+            candidate = torch.tensor([candidate], dtype=torch.double) # convert to tensor
             
-            
-        print("proposed candidate by acquisition function: ", candidate)
-        # if all 0, set last element to 1
+        # if layers to apply loRA is 0, set last element to 1
+        print("proposed candidate layer mask is: ", candidate[0][-9:-4])
         if torch.round(candidate[0][-9:-4]).sum() == 0:
+            print("proposed candidate has all zero for layer mask, adjusting to have at least one layer to apply LoRA")
             # Set that slice to [0, 0, 0, 0, 1]
-            candidate[0][-9:-4] = torch.tensor([0, 0, 0, 0, 1], dtype=candidate[0].dtype) 
-    
+            candidate[0][-9:-4] = torch.tensor([0, 0, 0, 0, 1], dtype=candidate[0].dtype)
+        
         input_X_between_0_1 = list(candidate[0])
-        print("input_X_between_0_1 for next iteration (for debugging purposes): ", input_X_between_0_1)
         input_X = process_candidate(candidate[0])
-
-    return GP_input, observed_output, gp
+        print("proposed parameters for next round by BO:", input_X)
+        print("normalized proposed parameters for next round by BO:", input_X_between_0_1)
+        print("fidelity for next round by BO:", fidelity)
+    
+    print("count of count_high_fidelity: ", count_high_fidelity)
+    print("count of count_low_fidelity: ", count_low_fidelity)
+    
+    # observed_output is what the GP sees, which may include low-fidelity observations
+    # full_train_results_list is the performance for full training
+    if fidelity is not None:
+        return GP_input, full_input, full_train_results_list, gp, all_fidelity_levels, full_train_results_list
+    else: # for non-multi-fidelity, observed_output is full training performance
+        return GP_input, full_input, full_train_results_list, gp, all_fidelity_levels, full_train_results_list
 
 def joint_opt_BO_LLM_only_data(default_rank, default_layer, default_num_layers_to_apply, default_dropout, default_alpha, time_callback, data_domains : List[str], random_dir : str, BO_run : int, total_data : int, evaluation_cuda : str, evaluation_task : dict, ucb_beta, trial_number, sampling_method = "random", train_epochs : int = 1, training_batch : int = 8, evaluation_batch : int = 4, printout=True, max_steps = -1, eval_steps=100, limit=100, model_id = "LLM/llama_8b_instruct", seed = 42, output_dir= "results/"):
     
@@ -1187,7 +1454,7 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, model_id : str, data_domains 
         # these are updated with the candidates and used in next iteration
         input_X_between_0_1 = list(candidate[0])
         input_X = process_values(candidate[0], len(data_domains))
-        
+    
     return GP_input, observed_output, gp
 
 def joint_opt_BO_LLM_only_model(time_callback, lora_rank_max, data_domains : List[str], random_dir : str, BO_run : int, total_data : int, evaluation_cuda : str, evaluation_task : dict, ucb_beta, trial_number, sampling_method = "random", train_epochs : int = 1, training_batch : int = 8, evaluation_batch : int = 4, printout=True, max_steps = -1, eval_steps=100, limit=100, model_id = "LLM/llama_8b_instruct", seed = 42, output_dir = "results/"):

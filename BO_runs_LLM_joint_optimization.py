@@ -1,6 +1,7 @@
 import random
 import string
-from BO import joint_opt_BO_LLM, joint_opt_BO_LLM_only_model, joint_opt_random, joint_opt_BO_LLM_only_data,  joint_opt_BO_LLM_with_dkl, joint_opt_BO_LLM_generalized
+from BO import joint_opt_BO_LLM_generalized
+import torch
 
 from peft import (
     LoraConfig,
@@ -28,6 +29,7 @@ parser.add_argument("--experiments_setting", help="either ood or in_dist")
 parser.add_argument("--time_limit", help="time_limit")
 parser.add_argument("--lora_rank", help="max lora_rank")
 parser.add_argument("--model", help="model name or path")
+parser.add_argument("--JoBS", help="whether to apply scaling law", default=False)
 
 # BO stuff, 
 parser.add_argument("--acq_function", help="acquisition function")
@@ -65,6 +67,7 @@ class TimerCallback(TrainerCallback):
 args = vars(parser.parse_args())
 print("command-line args: ", args)
 
+to_apply_joBS = args["JoBS"]
 eval_method = str(args["eval_method"])
 model=str(args["model"])
 setting=(args["experiments_setting"])
@@ -138,14 +141,15 @@ final_info_stored = {"command line args": args,
 BO_params = {
     "acq_function": acq_function, # either "ucb" or "EI"
     "ucb_beta": ucb_beta,
-    "optimize_method": optimize_method, # either "mixed" or "standard"
+    "optimize_method": optimize_method, # either "mixed" or "standard" or "multi_fidelity" or "multi_fidelity_KG"
+    "to_apply_joBS": to_apply_joBS,
 }
 
 for sample_method in sample_methods: # random sampling
-    results = []
+    results = [] # GP best seen so far
+    full_inputs_results = [] # all inputs tried
+    full_train_performance_results = [] # best seen full performance (theoretical, if we performed fully)
     for x in range(trials):
-        #model_id="Qwen/Qwen2.5-7B-Instruct" # pass this into next function if necessary
-        #model_id: str = "LLM/llama_8b_instruct"
         
         rng = random.Random()
         seed = rng.randint(0, 1000)
@@ -170,7 +174,7 @@ for sample_method in sample_methods: # random sampling
                 model_id="Qwen/Qwen3-32B"
             else:
                 assert False, "model not recognized"
-            GP_input, observed_output, gp = joint_opt_BO_LLM_generalized(default_lora_config=default_lora_config, 
+            GP_input, full_inputs, observed_output, gp, all_fidelity_levels, full_train_performance = joint_opt_BO_LLM_generalized(default_lora_config=default_lora_config, 
                                                                          time_callback=TimerCallback(time_limit),
                                                                          lora_rank_max=lora_rank,
                                                                          data_domains = data_domains,
@@ -188,99 +192,6 @@ for sample_method in sample_methods: # random sampling
                                                                         seed=seed,
                                                                         model_id=model_id,
                                                                         what_to_optimize="both")
-            
-         
-
-        # if run_BO_on == "all": # run BO on both data and model
-        #     print("running BO on both data and model")
-        #     GP_input, observed_output, gp = joint_opt_BO_LLM(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
-        #                                                 random_dir = random_string, 
-        #                                                     BO_run = BO_run,
-        #                                                     total_data = total_data, 
-        #                                                     evaluation_cuda = cuda, 
-        #                                                     evaluation_task = evaluation_task,
-        #                                                     trial_number=x,
-        #                                                     sampling_method = sample_method, 
-        #                                                     train_epochs=train_epochs, 
-        #                                                     training_batch=training_batch, 
-        #                                                     evaluation_batch=evaluation_batch,
-        #                                                     eval_steps=evaluation_steps,
-        #                                                     ucb_beta=ucb_beta,
-        #                                                     limit=limit,
-        #                                                     printout=True,
-        #                                                     seed=seed,
-        #                                                     output_dir=output_dir)
-        # elif run_BO_on == "model": # run BO only on model
-        #     print("running BO only on model")
-        #     GP_input, observed_output, gp = joint_opt_BO_LLM_only_model(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
-        #                                                 random_dir = random_string, 
-        #                                                     BO_run = BO_run,
-        #                                                     total_data = total_data, 
-        #                                                     evaluation_cuda = cuda, 
-        #                                                     evaluation_task = evaluation_task,
-        #                                                     trial_number=x,
-        #                                                     sampling_method = sample_method, 
-        #                                                     train_epochs=train_epochs, 
-        #                                                     training_batch=training_batch, 
-        #                                                     evaluation_batch=evaluation_batch,
-        #                                                     eval_steps=evaluation_steps,
-        #                                                     ucb_beta=ucb_beta,
-        #                                                     limit=limit,
-        #                                                     printout=True,
-        #                                                     seed=seed,
-        #                                                     output_dir=output_dir)
-        # elif run_BO_on == "data":
-        #     print("running BO only on data")
-        #     GP_input, observed_output, gp = joint_opt_BO_LLM_only_data(time_callback=TimerCallback(time_limit), default_alpha=16, default_dropout=0.05, default_layer=[1,1,1,1,1],
-        #                                                                default_num_layers_to_apply=16, default_rank=72,
-        #                                                                data_domains = data_domains,
-        #                                                                 random_dir = random_string, 
-        #                                                                 BO_run = BO_run,
-        #                                                                 total_data = total_data, 
-        #                                                                 evaluation_cuda = cuda, 
-        #                                                                 evaluation_task = evaluation_task,
-        #                                                                 trial_number=x,
-        #                                                                 sampling_method = sample_method, 
-        #                                                                 train_epochs=train_epochs, 
-        #                                                                 training_batch=training_batch, 
-        #                                                                 evaluation_batch=evaluation_batch,
-        #                                                                 eval_steps=evaluation_steps,
-        #                                                                 ucb_beta=ucb_beta,
-        #                                                                 limit=limit,
-        #                                                                 printout=True,
-        #                                                                 seed=seed,
-        #                                                                 output_dir=output_dir)
-        # elif run_BO_on == "random":
-        #     print("using random configurations")
-        #     GP_input, observed_output, = joint_opt_random(time_callback=TimerCallback(time_limit), lora_rank_max=lora_rank, data_domains = data_domains,
-        #                                                 random_dir = random_string, 
-        #                                                     BO_run = BO_run,
-        #                                                     total_data = total_data, 
-        #                                                     evaluation_cuda = cuda, 
-        #                                                     evaluation_task = evaluation_task,
-        #                                                     sampling_method = sample_method, 
-        #                                                     train_epochs=train_epochs, 
-        #                                                     training_batch=training_batch, 
-        #                                                     evaluation_batch=evaluation_batch,
-        #                                                     eval_steps=evaluation_steps,
-        #                                                     ucb_beta=ucb_beta,
-        #                                                     limit=limit,
-        #                                                     printout=True,
-        #                                                     seed=seed)
-        # elif run_BO_on == "dkl":
-        #     print("running BO with DKL")
-        #     GP_input, observed_output, gp = joint_opt_BO_LLM_with_dkl(time_callback=TimerCallback(time_limit),
-        #                                                             lora_rank_max=lora_rank, data_domains=data_domains,
-        #                                                             random_dir=random_string, BO_run=BO_run, total_data=total_data,
-        #                                                             evaluation_cuda=cuda, evaluation_task=evaluation_task,
-        #                                                             ucb_beta=ucb_beta, sampling_method=sample_method,
-        #                                                             train_epochs=train_epochs, training_batch=training_batch,
-        #                                                             evaluation_batch=evaluation_batch, printout=True,
-        #                                                             max_steps=evaluation_steps, eval_steps=evaluation_steps,
-        #                                                             limit=limit, seed=seed,
-        #                                                             dkl_feature_dim=args["dkl_feature_dim"], dkl_hidden=args["dkl_hidden"],dkl_freeze_nn=args["dkl_freeze_nn"])
-        # else:
-        #     assert False
 
         current_max = float('-inf')  # Start with negative infinity
         max_until_now = []           # List to store max values at each step
@@ -293,7 +204,16 @@ for sample_method in sample_methods: # random sampling
         # best performance seen by BO at every step
         print("Best at every step:", max_until_now)
         results.append(max_until_now)
+        # convert to numerical
+        full_inputs = [
+            [x.item() if isinstance(x, torch.Tensor) else x for x in inner]
+            for inner in full_inputs
+        ]
+        full_inputs_results.append(full_inputs)
+        full_train_performance_results.append(full_train_performance)
     final_info_stored[sample_method] = results
+    final_info_stored[sample_method + "_full_inputs"] = full_inputs_results
+    final_info_stored[sample_method + "_full_train_performance"] = full_train_performance
     
     
 import json
@@ -301,9 +221,12 @@ import os
 
 print("final results: ", final_info_stored)
 # Combine the info you want to save
+
 output_data = {
     "final_info_stored": final_info_stored,
-    "BO_params": BO_params
+    "full_training_run_performance": full_train_performance,
+    "BO_params": BO_params,
+    "fidelity_levels": all_fidelity_levels
 }
 
 # Define a path to save the JSON file
