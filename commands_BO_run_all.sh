@@ -1,6 +1,6 @@
 #!/bin/bash
 export TQDM_DISABLE=1
-export CUDA_VISIBLE_DEVICES=6
+export CUDA_VISIBLE_DEVICES=5
 
 # ----------------------- #
 # Shared configuration
@@ -21,7 +21,7 @@ MODEL=llama-8b # IMPORTANT
 UCB_BETA=20
 OPT_METHOD=random # IMPORTANT related to BO for mixed problems. random, mixed. For any BO related stuff, always used mixed.
 USE_JOBS=0 # whether to use & to run jobs in parallel. 0 or 1. If 1, make sure is mixed. Probably want to add a new arg for number of training points.
-INFO_PRINTOUT=evaluate_on_performance_in_dist # additional info to identify the experiment. Only affects the output file name.
+INFO_PRINTOUT=evaluate_on_performance_in_dist_multi_fidelity # additional info to identify the experiment. Only affects the output file name.
 ACQ_FUNC=ucb # EI or ucb
 
 # ----------------------- #
@@ -32,7 +32,8 @@ ACQ_FUNC=ucb # EI or ucb
 # group1=("winogrande")
 #group1=("truthfulqa_gen")
 #group1=("arc_challenge" "triviaqa" "mmlu" "commonsense_qa" "truthfulqa_gen" "gsm8k" "mmlu")
-group1=("arc_challenge" "truthfulqa_gen" "commonsense_qa" "triviaqa" "gsm8k" "mmlu")
+group1=("commonsense_qa" "triviaqa" "gsm8k" "mmlu")
+#group1=("gsm8k" "mmlu")
 echo "${group1[@]}"
 # ----------------------- #
 # Function to run a job
