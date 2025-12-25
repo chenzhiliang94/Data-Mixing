@@ -268,6 +268,96 @@ def run_BO_for_LLM(data_domains : List[str], random_dir : str, BO_run : int, tot
             print("proposed parameters for next round by BO:", input_X)
     return GP_input, observed_output, gp
 
+# initialize a list of size n, with random 0/1 values
+def sample_random_mask(n=5):
+    # Sample random 0/1 mask
+    mask = [random.choice([0, 1]) for _ in range(n)]
+    
+    # If all zeros, force last element to 1
+    if sum(mask) == 0:
+        mask[-1] = 1
+    
+    return mask
+
+def randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, lora_rank_max):
+    random.seed() 
+    if what_to_optimize == "data":
+        k = len(data_domains)
+        input_X = np.random.dirichlet([1.0] * k).tolist()
+        input_X_between_0_1 = input_X[:] # already between 0 and 1
+        
+    elif what_to_optimize == "model":
+        # num_layers_to_apply
+        num_layers = random.randint(1, lora_max_num_layers)
+        input_X = [num_layers]
+        input_X_between_0_1 = [num_layers / lora_max_num_layers]
+
+        # random mask of 0/1 for 5 layers
+        mask = sample_random_mask(5)
+        input_X += mask
+        input_X_between_0_1 += mask
+
+        # rank
+        rank = random.randint(1, lora_rank_max)
+        input_X.append(rank)
+        input_X_between_0_1.append(rank / lora_rank_max)
+
+        # dropout
+        dropout = random.uniform(0.0, 0.1)   # adjust domain if needed
+        input_X.append(dropout)
+        input_X_between_0_1.append(dropout / 0.1)
+
+        # alpha
+        alpha = random.randint(1, 48)
+        input_X.append(alpha)
+        input_X_between_0_1.append(alpha / 48)
+
+        # reverse
+        reverse = random.choice([0, 1])
+        input_X.append(reverse)
+        input_X_between_0_1.append(reverse)
+    else: # optimize both
+        
+        # data mixture
+        k = len(data_domains)
+        input_X = np.random.dirichlet([1.0] * k).tolist()
+        input_X_between_0_1 = input_X[:] # already between 0 and 1
+        
+        print("data mixture random: ", input_X)
+        
+        # num_layers_to_apply
+        num_layers = random.randint(1, lora_max_num_layers)
+        input_X.append(num_layers)
+        input_X_between_0_1.append(num_layers / lora_max_num_layers)
+
+        # random mask of 0/1 for 5 layers
+        mask = sample_random_mask(5)
+        input_X += mask
+        input_X_between_0_1 += mask
+
+        # rank
+        rank = random.randint(1, lora_rank_max)
+        input_X.append(rank)
+        input_X_between_0_1.append(rank / lora_rank_max)
+
+        # dropout
+        dropout = random.uniform(0.0, 0.1)
+        input_X.append(dropout)
+        input_X_between_0_1.append(dropout / 0.1)
+
+        # alpha
+        alpha = random.randint(1, 48)
+        input_X.append(alpha)
+        input_X_between_0_1.append(alpha / 48)
+
+        # reverse
+        reverse = random.choice([0, 1])
+        input_X.append(reverse)
+        input_X_between_0_1.append(reverse)
+        
+        print("randomly generated all inputs: ",input_X)
+    return input_X, input_X_between_0_1
+    
 def arrange_lora_config(lora_r, lora_dropout, num_layers_to_apply, five_dim_vector, lora_alpha, lora_reverse : bool, max_num_layers):
     '''
     lora_r: float
@@ -401,13 +491,13 @@ def joint_opt_BO_LLM_generalized(
             sampled_val_data = sampled_val_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                 "add_eos_token": add_eos_token,
                                                                                 "train_on_inputs": train_on_inputs,
-                                                                                })
+                                                                                }, keep_in_memory=False)
             sampled_val_data = sampled_val_data.select_columns(['input_ids', 'attention_mask', 'labels'])
             all_sampled_evaluation_data.append(sampled_val_data)
         all_sampled_evaluation_data = concatenate_datasets(all_sampled_evaluation_data)
 
     # -------------------------
-    # Initialize input_X
+    # Randomly initialize input_X
     # -------------------------
     if what_to_optimize == "data":
         input_X = [1] + [0] * (len(data_domains) - 1)
@@ -655,7 +745,10 @@ def joint_opt_BO_LLM_generalized(
         # Fit GP
         #gp = SingleTaskGP(torch.DoubleTensor(GP_input), torch.DoubleTensor(observed_output).reshape(-1,1), outcome_transform=Standardize(m=1))
         gp = MixedSingleTaskGP(torch.DoubleTensor(GP_input), torch.DoubleTensor(observed_output).reshape(-1,1), discrete_dims, outcome_transform=Standardize(m=1), input_transform=Normalize(d=len(input_X)))
-        fit_gpytorch_mll(ExactMarginalLogLikelihood(gp.likelihood, gp))
+        
+        # only fit to GP if not random search
+        if BO_params["optimize_method"] != "random":
+            fit_gpytorch_mll(ExactMarginalLogLikelihood(gp.likelihood, gp))
 
         # Suggest next candidate
         if BO_params["acq_function"] == "ucb":
@@ -693,6 +786,13 @@ def joint_opt_BO_LLM_generalized(
                 # feature choice for these indices, 1 to 6 are binary decisions
                 candidate, _ = optimize_acqf_mixed_alternating(acq, bounds=bounds, q=1, num_restarts=20, raw_samples=1024, discrete_dims=discrete_dims,
                                             equality_constraints=[(torch.tensor(x), torch.tensor(A), 1)])
+        
+        if BO_params["optimize_method"] == "random":
+            candidate, input_X_between_0_1 = randomly_generate_data(what_to_optimize, data_domains, lora_max_num_layers, lora_rank_max)
+            candidate = torch.tensor([input_X_between_0_1], dtype=torch.double)
+            print("random input_X_between_0_1 generated (for debugging purposes): ", input_X_between_0_1)
+            
+            
         print("proposed candidate by acquisition function: ", candidate)
         # if all 0, set last element to 1
         if torch.round(candidate[0][-9:-4]).sum() == 0:
@@ -700,6 +800,7 @@ def joint_opt_BO_LLM_generalized(
             candidate[0][-9:-4] = torch.tensor([0, 0, 0, 0, 1], dtype=candidate[0].dtype) 
     
         input_X_between_0_1 = list(candidate[0])
+        print("input_X_between_0_1 for next iteration (for debugging purposes): ", input_X_between_0_1)
         input_X = process_candidate(candidate[0])
 
     return GP_input, observed_output, gp
@@ -1193,7 +1294,7 @@ def joint_opt_BO_LLM(time_callback, lora_rank_max, model_id : str, data_domains 
                 perf = results["results"][task][metric]
                 if task == "wikitext":
                     perf = - perf # we want to maximize the score, so for perplexity we maximize instead
-                observed_performance += (perf * weight)
+                observed_performance += (perf * task_weight)
                 
             # free GPU. Easiest way.
             model.to("cpu")

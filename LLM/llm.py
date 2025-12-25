@@ -223,11 +223,11 @@ def extract_data_mixture_and_train(model, tokenizer, train_datasets, val_dataset
         sampled_train_data = sampled_train_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
-                                                                                   })
+                                                                                   }, keep_in_memory=False)
         sampled_val_data = sampled_val_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
-                                                                                   })
+                                                                                   }, keep_in_memory=False)
         
         sampled_train_data = sampled_train_data.select_columns(['input_ids', 'attention_mask', 'labels'])
         sampled_val_data = sampled_val_data.select_columns(['input_ids', 'attention_mask', 'labels'])
@@ -242,7 +242,7 @@ def extract_data_mixture_and_train(model, tokenizer, train_datasets, val_dataset
     print("length of training data: ", len(combined_train_dataset))
     if evaluation_dataset is None:
         print("evaluation dataset not given. This means we are not using evaluation loss. Will just use training data and evaluation loss")
-        evaluation_dataset = combined_train_dataset.shuffle(seed=42).select(range(int(len(combined_train_dataset)/2)))
+        evaluation_dataset = combined_train_dataset.shuffle(seed=42).select(range(int(len(combined_train_dataset)/10)))
     print("length of validation data: ", len(evaluation_dataset))
     train_results = train(model, tokenizer, combined_train_dataset, evaluation_dataset, train_epochs, batch_size, max_step, eval_steps, callback=callback)
     return train_results
@@ -272,11 +272,14 @@ def extract_data_mixture_and_train_and_evaluate(input_X, evaluation_task, model,
         sampled_train_data = sampled_train_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
-                                                                                   })
+                                                                                   }, keep_in_memory=False)
         sampled_val_data = sampled_val_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
                                                                                    "train_on_inputs": train_on_inputs,
-                                                                                   })
+                                                                                   }, keep_in_memory=False)
+        # print("done mapping!")
+        
+        # drop columns
         
         sampled_train_data = sampled_train_data.select_columns(['input_ids', 'attention_mask', 'labels'])
         sampled_val_data = sampled_val_data.select_columns(['input_ids', 'attention_mask', 'labels'])
@@ -728,6 +731,18 @@ def load_data(data_domain):
         dataset = datasets.load_dataset("allenai/ai2_arc", "ARC-Challenge", cache_dir = cache_dir)
         train_dataset = dataset["train"]
         val_dataset = dataset["validation"]
+    elif data_domain == "winogrande":
+        dataset = datasets.load_dataset("allenai/winogrande", "winogrande_xl", cache_dir = "/home/chenzhil/maplecg_nfs/Data-Mixing/datasets")
+        train_dataset = dataset["train"]
+        val_dataset = dataset["validation"]
+    elif data_domain == "minervamath":
+        dataset = datasets.load_dataset("math-ai/minervamath", cache_dir = "/home/chenzhil/maplecg_nfs/Data-Mixing/datasets")
+        train_dataset = dataset["test"]
+        val_dataset = dataset["test"]
+    elif data_domain == "humaneval":
+        dataset = datasets.load_dataset("openai/openai_humaneval", cache_dir = "/home/chenzhil/maplecg_nfs/Data-Mixing/datasets")
+        train_dataset = dataset["test"]
+        val_dataset = dataset["test"]
     else:
         assert False, "data_domain not valid, pls check"
     return train_dataset, val_dataset

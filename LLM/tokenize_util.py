@@ -508,6 +508,118 @@ def generate_and_tokenize_prompt_ai2_arc(data_point, tokenizer, add_eos_token, t
         ]  # could be sped up, probably
     return tokenized_full_convo
 
+def generate_and_tokenize_prompt_winogrande(data_point, tokenizer, add_eos_token, train_on_inputs):
+    
+
+#     {'sentence': "Ian volunteered to eat Dennis's menudo after already having a bowl because _ despised eating intestine.",
+#  'option1': 'Ian',
+#  'option2': 'Dennis',
+#  'answer': '2'}
+
+    option1 = data_point["option1"]
+    option2 = data_point["option2"]
+    chat = []
+    system_prompt = {"role": "system", "content": "You are a helpful assistant with knowledge. Please complete the following question by choosing the correct option."}
+    user_Q = {"role": "user", "content": "Question: " + data_point['sentence'] + " Choose among the following choices: \n 1. " + option1 + "\n 2. " + option2}
+    llm_A = {"role": "assistant", "content": data_point["answer"]}
+    chat.append(system_prompt)
+    chat.append(user_Q)
+    user_prompt = tokenizer.apply_chat_template(chat, tokenize = False) # only the user chat template
+    
+    chat.append(llm_A)
+    full_convo = tokenizer.apply_chat_template(chat, tokenize = False) # full chat template
+
+    # tokenize the chat template
+    tokenized_full_convo = tokenize(tokenizer, full_convo, add_eos_token=add_eos_token)
+    tokenized_user_prompt = tokenize(tokenizer, user_prompt, add_eos_token=add_eos_token)
+    
+    # adjust mask labels (important)
+    if not train_on_inputs:
+        
+        user_prompt_len = len(tokenized_user_prompt["input_ids"])
+        if add_eos_token:
+            user_prompt_len -= 1
+
+        tokenized_full_convo["labels"] = [
+            -100
+        ] * user_prompt_len + tokenized_full_convo["labels"][
+            user_prompt_len:
+        ]  # could be sped up, probably
+    return tokenized_full_convo
+
+def generate_and_tokenize_prompt_minerva(data_point, tokenizer, add_eos_token, train_on_inputs):
+    
+
+# {'question': 'Each of the two Magellan telescopes has a diameter of $6.5 \\mathrm{~m}$. In one configuration the effective focal length is $72 \\mathrm{~m}$. Find the diameter of the image of a planet (in $\\mathrm{cm}$ ) at this focus if the angular diameter of the planet at the time of the observation is $45^{\\prime \\prime}$.',
+#  'answer': '1.6'}
+
+    chat = []
+    system_prompt = {"role": "system", "content": "You are a helpful assistant with knowledge. Please answer the following question."}
+    user_Q = {"role": "user", "content": "Question: " + data_point['question']}
+    llm_A = {"role": "assistant", "content": data_point["answer"]}
+    chat.append(system_prompt)
+    chat.append(user_Q)
+    user_prompt = tokenizer.apply_chat_template(chat, tokenize = False) # only the user chat template
+    
+    chat.append(llm_A)
+    full_convo = tokenizer.apply_chat_template(chat, tokenize = False) # full chat template
+
+    # tokenize the chat template
+    tokenized_full_convo = tokenize(tokenizer, full_convo, add_eos_token=add_eos_token)
+    tokenized_user_prompt = tokenize(tokenizer, user_prompt, add_eos_token=add_eos_token)
+    
+    # adjust mask labels (important)
+    if not train_on_inputs:
+        
+        user_prompt_len = len(tokenized_user_prompt["input_ids"])
+        if add_eos_token:
+            user_prompt_len -= 1
+
+        tokenized_full_convo["labels"] = [
+            -100
+        ] * user_prompt_len + tokenized_full_convo["labels"][
+            user_prompt_len:
+        ]  # could be sped up, probably
+    return tokenized_full_convo
+
+def generate_and_tokenize_prompt_humaneval(data_point, tokenizer, add_eos_token, train_on_inputs):
+    
+
+# {'task_id': 'HumanEval/0',
+#  'prompt': 'from typing import List\n\n\ndef has_close_elements(numbers: List[float], threshold: float) -> bool:\n    """ Check if in given list of numbers, are any two numbers closer to each other than\n    given threshold.\n    >>> has_close_elements([1.0, 2.0, 3.0], 0.5)\n    False\n    >>> has_close_elements([1.0, 2.8, 3.0, 4.0, 5.0, 2.0], 0.3)\n    True\n    """\n',
+#  'canonical_solution': '    for idx, elem in enumerate(numbers):\n        for idx2, elem2 in enumerate(numbers):\n            if idx != idx2:\n                distance = abs(elem - elem2)\n                if distance < threshold:\n                    return True\n\n    return False\n',
+#  'test': "\n\nMETADATA = {\n    'author': 'jt',\n    'dataset': 'test'\n}\n\n\ndef check(candidate):\n    assert candidate([1.0, 2.0, 3.9, 4.0, 5.0, 2.2], 0.3) == True\n    assert candidate([1.0, 2.0, 3.9, 4.0, 5.0, 2.2], 0.05) == False\n    assert candidate([1.0, 2.0, 5.9, 4.0, 5.0], 0.95) == True\n    assert candidate([1.0, 2.0, 5.9, 4.0, 5.0], 0.8) == False\n    assert candidate([1.0, 2.0, 3.0, 4.0, 5.0, 2.0], 0.1) == True\n    assert candidate([1.1, 2.2, 3.1, 4.1, 5.1], 1.0) == True\n    assert candidate([1.1, 2.2, 3.1, 4.1, 5.1], 0.5) == False\n\n",
+#  'entry_point': 'has_close_elements'}
+
+    chat = []
+    system_prompt = {"role": "system", "content": "You are a helpful assistant with knowledge. Please answer the following coding question by generating a function that satisfies the requirements."}
+    user_Q = {"role": "user", "content": "Question: " + data_point['prompt']}
+    llm_A = {"role": "assistant", "content": data_point["canonical_solution"]}
+    chat.append(system_prompt)
+    chat.append(user_Q)
+    user_prompt = tokenizer.apply_chat_template(chat, tokenize = False) # only the user chat template
+    
+    chat.append(llm_A)
+    full_convo = tokenizer.apply_chat_template(chat, tokenize = False) # full chat template
+
+    # tokenize the chat template
+    tokenized_full_convo = tokenize(tokenizer, full_convo, add_eos_token=add_eos_token)
+    tokenized_user_prompt = tokenize(tokenizer, user_prompt, add_eos_token=add_eos_token)
+    
+    # adjust mask labels (important)
+    if not train_on_inputs:
+        
+        user_prompt_len = len(tokenized_user_prompt["input_ids"])
+        if add_eos_token:
+            user_prompt_len -= 1
+
+        tokenized_full_convo["labels"] = [
+            -100
+        ] * user_prompt_len + tokenized_full_convo["labels"][
+            user_prompt_len:
+        ]  # could be sped up, probably
+    return tokenized_full_convo
+
 tokenizing_method = {
     "wikitext":generate_and_tokenize_prompt_wikiQA,
     "triviaqa":generate_and_tokenize_prompt_trivialQA,
@@ -522,4 +634,7 @@ tokenizing_method = {
     "headqa_en":generate_and_tokenize_prompt_headqa,
     "mmlu":generate_and_tokenize_prompt_mmlu,
     "arc_challenge":generate_and_tokenize_prompt_ai2_arc,
+    "winogrande":generate_and_tokenize_prompt_winogrande,
+    "minervamath":generate_and_tokenize_prompt_minerva,
+    "humaneval":generate_and_tokenize_prompt_humaneval,
 }
