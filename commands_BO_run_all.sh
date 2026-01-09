@@ -1,6 +1,6 @@
 #!/bin/bash
 export TQDM_DISABLE=1
-export CUDA_VISIBLE_DEVICES=5
+export CUDA_VISIBLE_DEVICES=2
 
 # ----------------------- #
 # Shared configuration
@@ -14,15 +14,25 @@ TIME_LIMIT=1000 # usually this is not a limiting factor because we will finish 1
 LORA_RANK=128
 LIMIT=100 # how many datapoints to evaluation in llm-harness. 0 means all points.
 RUN_ON=general # optimize both components
-TRAIN_BATCH=32
-EVAL_BATCH=32
+TRAIN_BATCH=16
+EVAL_BATCH=16
 EVAL_METHOD=performance # IMPORTANT. eval_loss or performance (either take loss or performance)
-MODEL=llama-8b # IMPORTANT
+MODEL=qwen-14b # IMPORTANT
 UCB_BETA=20
-OPT_METHOD=random # IMPORTANT related to BO for mixed problems. random, mixed. For any BO related stuff, always used mixed.
+OPT_METHOD=mixed # IMPORTANT related to BO for mixed problems. random, mixed. For any BO related stuff, always used mixed.
 USE_JOBS=0 # whether to use & to run jobs in parallel. 0 or 1. If 1, make sure is mixed. Probably want to add a new arg for number of training points.
-INFO_PRINTOUT=evaluate_on_performance_in_dist_multi_fidelity # additional info to identify the experiment. Only affects the output file name.
+INFO_PRINTOUT=evaluate_on_${EVAL_METHOD}_in_dist # additional info to identify the experiment. Only affects the output file name.
 ACQ_FUNC=ucb # EI or ucb
+
+            
+# if model == "llama-8b":
+#     model_id="meta-llama/Meta-Llama-3-8B-Instruct"
+# elif model == "qwen-7b":
+#     model_id="Qwen/Qwen2.5-7B-Instruct"
+# elif model == "qwen-14b":
+#     model_id="Qwen/Qwen3-14B"
+# elif model == "qwen-32b":
+#     model_id="Qwen/Qwen3-32B"
 
 # ----------------------- #
 # Task groups
@@ -31,9 +41,10 @@ ACQ_FUNC=ucb # EI or ucb
 #group1=("arc_challenge")
 # group1=("winogrande")
 #group1=("truthfulqa_gen")
-#group1=("arc_challenge" "triviaqa" "mmlu" "commonsense_qa" "truthfulqa_gen" "gsm8k" "mmlu")
-group1=("commonsense_qa" "triviaqa" "gsm8k" "mmlu")
-#group1=("gsm8k" "mmlu")
+group1=("arc_challenge" "triviaqa" "mmlu" "commonsense_qa" "truthfulqa_gen" "gsm8k" "mmlu")
+#group1=("commonsense_qa" "triviaqa" "gsm8k" "mmlu")
+#group1=("mmlu" "triviaqa")
+
 echo "${group1[@]}"
 # ----------------------- #
 # Function to run a job
