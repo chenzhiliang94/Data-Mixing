@@ -31,15 +31,20 @@ parser.add_argument('--dist', type=str, required=True,
                     choices=['ood', 'in_dist'],
                     help='Distribution type: determines STATIC_DIM and save path')
 
+parser.add_argument('--eval_method', type=str, required=True,
+                    choices=['eval_loss', 'performance'],
+                    help='Use eval_loss or performance for prediction')
+
 args = parser.parse_args()
 
 TASKS_LIST = [t.strip() for t in args.task.split(',')]
 DEFAULT_HISTORY_STEPS_LIST = [int(s.strip()) for s in args.default_history_steps.split(',')]
 DEFAULT_PREDICTION_STEPS_LIST = [int(s.strip()) for s in args.default_prediction_steps.split(',')]
 DIST_TYPE = args.dist
+EVAL_METHOD = args.eval_method
 
 # --- Ablation Configuration ---
-SAMPLE_SIZES = [30, 50, 80] 
+SAMPLE_SIZES = [10,20,30] 
 VALIDATION_SPLIT = 0.2  
 RANDOM_STATE = 42
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -126,7 +131,7 @@ class DataProcessor:
                 continue
 
             evals_list = experiment.get('evaluations', [])
-            step_map = {item['step']: item for item in evals_list if 'eval_loss' in item}
+            step_map = {item['step']: item for item in evals_list if EVAL_METHOD in item}
 
             # 1. Check if ALL required history points exist
             history_features = []
@@ -134,7 +139,7 @@ class DataProcessor:
             for req_step in required_history_steps:
                 if req_step in step_map:
                     history_features.append(float(req_step))
-                    history_features.append(float(step_map[req_step]['eval_loss']))
+                    history_features.append(float(step_map[req_step][EVAL_METHOD]))
                 else:
                     found_all_history = False
                     break
@@ -152,12 +157,12 @@ class DataProcessor:
                     features_perf.append(float(valid_target_point['step']))
                     
                     self.X_perf.append(features_perf)
-                    self.y_perf.append(valid_target_point['eval_loss'])
+                    self.y_perf.append(valid_target_point[EVAL_METHOD])
 
                     traj = []
                     sorted_steps = sorted([k for k in step_map.keys() if k <= target_step])
                     for s in sorted_steps:
-                        traj.append((s, step_map[s]['eval_loss']))
+                        traj.append((s, step_map[s][EVAL_METHOD]))
                     self.trajectories.append(traj)
 
     def get_data_arrays(self):
@@ -314,9 +319,13 @@ def visualize_individual_predictions(X_val_original, trajectories, y_val, predic
         task = save_dir.split("/")[-1]
         plt.title(f'Task: {task} | Train Size: {num_samples} | Targets: {target_steps_str}')
         plt.xlabel('Step')
-        plt.ylabel('Eval Loss')
-        plt.ylim(0, 4)
-        plt.gca().yaxis.set_major_locator(MultipleLocator(0.5))
+        plt.ylabel(EVAL_METHOD)
+        if EVAL_METHOD == "eval_loss":
+            plt.ylim(0, 4)
+            plt.gca().yaxis.set_major_locator(MultipleLocator(0.5))
+        elif EVAL_METHOD == "performance":
+            plt.ylim(0, 1)
+            plt.gca().yaxis.set_major_locator(MultipleLocator(0.1))
         plt.grid(True, alpha=0.3, which='both')
         plt.legend()
         plt.savefig(os.path.join(visuals_dir, f"experiment_{exp_counter}.png"))
@@ -438,7 +447,7 @@ def generate_ablation_summary_plot(task, ablation_type, collected_results, value
     plt.tight_layout()
     
     # Save in summary folder
-    summary_dir = os.path.join(save_dir, "summaries", task)
+    summary_dir = os.path.join(save_dir, f"{EVAL_METHOD}_summaries", task)
     os.makedirs(summary_dir, exist_ok=True)
     save_path = os.path.join(summary_dir, f"{ablation_type}_summary_grid.png")
     plt.savefig(save_path, bbox_inches='tight')
@@ -476,7 +485,7 @@ def run_single_config(task, config, config_name):
     tgt_str = "_".join(map(str, current_prediction_steps))
     
     # Updated Save Directory
-    SAVE_DIR = f'{BASE_OUTPUT_DIR}/{DIST_TYPE}_H{hist_str}_T{tgt_str}/{task}/{config_name}'
+    SAVE_DIR = f'{BASE_OUTPUT_DIR}/{EVAL_METHOD}_H{hist_str}_T{tgt_str}/{task}/{config_name}'
     os.makedirs(SAVE_DIR, exist_ok=True)
 
     set_all_seeds(RANDOM_STATE) 
@@ -602,7 +611,7 @@ def run_full_ablation():
 
         global_results[task] = task_results
 
-    summary_path = f"{BASE_OUTPUT_DIR}/ablation_results_summary.json"
+    summary_path = f"{BASE_OUTPUT_DIR}/{EVAL_METHOD}_ablation_results_summary.json"
     with open(summary_path, 'w') as f: json.dump(global_results, f, indent=4)
     print(f"\nAll Ablation Studies Completed. Summary saved to {summary_path}")
 

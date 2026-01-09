@@ -202,35 +202,37 @@ for sample_method in sample_methods: # random sampling
                                                             eval_steps=evaluation_steps,
                                                             training_batch=training_batch,
                                                             seed=seed)
-            
-        if model == "llama-8b":
-            model_id="meta-llama/Meta-Llama-3-8B-Instruct"
-        elif model == "qwen-7b":
-            model_id="Qwen/Qwen2.5-7B-Instruct"
-        elif model == "qwen-14b":
-            model_id="Qwen/Qwen3-14B"
-        elif model == "qwen-32b":
-            model_id="Qwen/Qwen3-32B"
-        else:
-            assert False, "model not recognized"
-        GP_input, full_inputs, observed_output, gp, all_fidelity_levels, full_train_performance = joint_opt_BO_LLM_generalized(default_lora_config=default_lora_config, 
-                                                                        time_callback=TimerCallback(time_limit),
-                                                                        lora_rank_max=lora_rank,
-                                                                        data_domains = data_domains,
-                                                                    BO_run = BO_run,
-                                                                    total_data = total_data,
-                                                                    evaluation_task = evaluation_task,
-                                                                    eval_method=eval_method,
-                                                                    BO_params = BO_params,
-                                                                    sampling_method = sample_method, 
-                                                                    train_epochs=train_epochs, 
-                                                                    training_batch=training_batch, 
-                                                                    evaluation_batch=evaluation_batch,
-                                                                    eval_steps=evaluation_steps,
-                                                                    limit=limit,
-                                                                    seed=seed,
-                                                                    model_id=model_id,
-                                                                    what_to_optimize="both")
+        if run_BO_on == "general": # run BO on both data and model
+            print("running BO on both data and model")
+
+            if model == "llama-8b":
+                model_id="meta-llama/Meta-Llama-3-8B-Instruct"
+            elif model == "qwen-7b":
+                model_id="Qwen/Qwen2.5-7B-Instruct"
+            elif model == "qwen-14b":
+                model_id="Qwen/Qwen3-14B"
+            elif model == "qwen-32b":
+                model_id="Qwen/Qwen3-32B"
+            else:
+                assert False, "model not recognized"
+            GP_input, full_inputs, observed_output, gp, all_fidelity_levels, full_train_performance = joint_opt_BO_LLM_generalized(default_lora_config=default_lora_config, 
+                                                                         time_callback=TimerCallback(time_limit),
+                                                                         lora_rank_max=lora_rank,
+                                                                         data_domains = data_domains,
+                                                                        BO_run = BO_run,
+                                                                        total_data = total_data,
+                                                                        evaluation_task = evaluation_task,
+                                                                        eval_method=eval_method,
+                                                                        BO_params = BO_params,
+                                                                        sampling_method = sample_method, 
+                                                                        train_epochs=train_epochs, 
+                                                                        training_batch=training_batch, 
+                                                                        evaluation_batch=evaluation_batch,
+                                                                        eval_steps=evaluation_steps,
+                                                                        limit=limit,
+                                                                        seed=seed,
+                                                                        model_id=model_id,
+                                                                        what_to_optimize="both")
 
         current_max = float('-inf')  # Start with negative infinity
         max_until_now = []           # List to store max values at each step

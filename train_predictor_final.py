@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from scipy.interpolate import make_interp_spline
 import joblib
@@ -16,15 +15,16 @@ import argparse
 from typing import List, Tuple, Dict, Any
 
 # --- Fixed Configuration ---
-SAMPLE_SIZES = [10,20,30]
+# Modified: Only run for 20 samples as requested
+SAMPLE_SIZES = [20] 
 EPOCHS = 500
 BATCH_SIZE = 8
 LEARNING_RATE = 0.01
-VALIDATION_SPLIT = 0.2  
+# Validation split is now manual (indices 20-30), so this constant is removed/unused
 RANDOM_STATE = 42
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-BASE_PATH = f"trained_predictor_10,20,30samples"
+BASE_PATH = f"trained_predictor_fixed_20train_10val"
 
 # --- Classes & Functions ---
 
@@ -65,7 +65,7 @@ class DataProcessor:
                 continue
 
             evals_list = experiment.get('evaluations', [])
-            step_map = {item['step']: item for item in evals_list if 'eval_loss' in item}
+            step_map = {item['step']: item for item in evals_list if EVAL_METHOD in item}
 
             # 1. Check if ALL required history points exist
             history_features = []
@@ -73,7 +73,7 @@ class DataProcessor:
             for req_step in required_history_steps:
                 if req_step in step_map:
                     history_features.append(float(req_step))
-                    history_features.append(float(step_map[req_step]['eval_loss']))
+                    history_features.append(float(step_map[req_step][EVAL_METHOD]))
                 else:
                     found_all_history = False
                     break
@@ -91,13 +91,13 @@ class DataProcessor:
                     features_perf.append(float(valid_target_point['step']))
                     
                     self.X_perf.append(features_perf)
-                    self.y_perf.append(valid_target_point['eval_loss'])
+                    self.y_perf.append(valid_target_point[EVAL_METHOD])
 
                     # Extract Full Trajectory up to this target step
                     traj = []
                     sorted_steps = sorted([k for k in step_map.keys() if k <= target_step])
                     for s in sorted_steps:
-                        traj.append((s, step_map[s]['eval_loss']))
+                        traj.append((s, step_map[s][EVAL_METHOD]))
                     self.trajectories.append(traj)
 
     def get_data_arrays(self):
@@ -216,21 +216,6 @@ def visualize_individual_predictions(X_val_original, trajectories, y_val, predic
         steps = np.array(steps)
         losses = np.array(losses)
 
-        # # Apply smoothing only if we have enough points (k=3 requires at least 4 points)
-        # if len(steps) > 3:
-        #     try:
-        #         # Create a B-spline representation of the curve
-        #         spline = make_interp_spline(steps, losses, k=3) 
-        #         steps_smooth = np.linspace(steps.min(), steps.max(), 500)
-        #         losses_smooth = spline(steps_smooth)
-                
-        #         plt.plot(steps_smooth, losses_smooth, color='grey', alpha=0.6, linestyle='-', linewidth=1.5, label='Actual Trajectory')
-        #     except Exception as e:
-        #         # Fallback to straight lines if smoothing fails
-        #         plt.plot(steps, losses, color='grey', alpha=0.6, linestyle='-', linewidth=1.5, label='Actual Trajectory')
-        # else:
-        #     plt.plot(steps, losses, color='grey', alpha=0.6, linestyle='-', linewidth=1.5, label='Actual Trajectory')
-
         plt.plot(steps, losses, color='grey', alpha=0.6, linestyle='-', linewidth=1.5, label='Actual Trajectory')
         
         # 2. Plot Input History Points (Blue Dots)
@@ -282,11 +267,14 @@ def visualize_individual_predictions(X_val_original, trajectories, y_val, predic
         task = save_dir.split("/")[-1]
         plt.title(f'Task: {task} | Train Size: {num_samples} | Targets: {target_steps_str}')
         plt.xlabel('Step')
-        plt.ylabel('Eval Loss')
+        plt.ylabel(EVAL_METHOD)
         
-        # --- Fixed Y-Axis to 0-4 with 0.5 intervals ---
-        plt.ylim(0, 4)
-        plt.gca().yaxis.set_major_locator(MultipleLocator(0.5))
+        if EVAL_METHOD == "eval_loss":
+            plt.ylim(0, 4)
+            plt.gca().yaxis.set_major_locator(MultipleLocator(0.5))
+        elif EVAL_METHOD == "performance":
+            plt.ylim(0, 1)
+            plt.gca().yaxis.set_major_locator(MultipleLocator(0.1))
         
         plt.grid(True, alpha=0.3, which='both')
         plt.legend()
@@ -298,7 +286,8 @@ def visualize_individual_predictions(X_val_original, trajectories, y_val, predic
 
 
 def plot_error_comparison(X_val, y_val, trajectories, save_dir, input_dim, sample_sizes):
-    plt.figure(figsize=(15, 5))
+    # Adjusted figsize since we are likely only plotting 1 subplot now
+    plt.figure(figsize=(6 * len(sample_sizes), 5))
     colors = ['#ff9999', '#66b3ff', '#99ff99']
     rmse_list = []
 
@@ -327,8 +316,8 @@ def plot_error_comparison(X_val, y_val, trajectories, save_dir, input_dim, sampl
         rmse = np.sqrt(np.mean(np.square(errors)))
         rmse_list.append(rmse)
         
-        plt.subplot(1, 3, i+1)
-        plt.hist(errors, bins=20, alpha=0.7, color=colors[i], edgecolor='white')
+        plt.subplot(1, len(sample_sizes), i+1)
+        plt.hist(errors, bins=20, alpha=0.7, color=colors[i % len(colors)], edgecolor='white')
         plt.axvline(0, color='black', linestyle='--')
         plt.title(f'N={num_samples} | RMSE: {rmse:.4f}')
         plt.xlabel('Error')
@@ -363,7 +352,7 @@ def run_experiment(task):
     
     hist_str = "_".join(map(str, REQUIRED_HISTORY_STEPS))
     tgt_str = "_".join(map(str, TARGET_PREDICTION_STEPS))
-    SAVE_DIR = f'{BASE_PATH}/{DIST_TYPE}_H{hist_str}_T{tgt_str}_curve/{task}'
+    SAVE_DIR = f'{BASE_PATH}/{EVAL_METHOD}_H{hist_str}_T{tgt_str}_curve/{task}'
     os.makedirs(SAVE_DIR, exist_ok=True)
 
     set_all_seeds(RANDOM_STATE) 
@@ -373,51 +362,42 @@ def run_experiment(task):
         print(f"Skipping {task}: No data found.")
         return
 
-    train_raw_exps, val_raw_exps = train_test_split(
-        processor.raw_data, 
-        test_size=VALIDATION_SPLIT, 
-        random_state=RANDOM_STATE
-    )
+    # --- UPDATED SPLITTING LOGIC ---
+    # Strictly slicing: 0-20 for training, 20-30 for validation
+    
+    if len(processor.raw_data) < 30:
+        print(f"Warning: Not enough data for strict 20/10 split. Found {len(processor.raw_data)} samples.")
+        print("Proceeding with available data, but splits may be smaller than requested.")
+    
+    train_raw_exps = processor.raw_data[:20]
+    val_raw_exps = processor.raw_data[20:30]
 
-    # Preprocess Validation Set
+    # Process Validation Set
     processor.set_raw_data(val_raw_exps)
     processor.preprocess(REQUIRED_HISTORY_STEPS, TARGET_PREDICTION_STEPS, STATIC_DIM)
     X_val_global, y_val_global = processor.get_data_arrays()
     val_trajectories = processor.get_trajectories()
     
     if len(X_val_global) == 0:
-        print(f"Skipping {task}: No validation data found matching required steps.")
+        print(f"Skipping {task}: No validation data extracted from samples 20-30.")
         return
 
+    # Process Training Set
+    processor.set_raw_data(train_raw_exps)
+    processor.preprocess(REQUIRED_HISTORY_STEPS, TARGET_PREDICTION_STEPS, STATIC_DIM)
+    X_train_final, y_train_final = processor.get_data_arrays()
+
+    if len(X_train_final) == 0:
+        print(f"Skipping {task}: No training data extracted from samples 0-20.")
+        return
+
+    # We use the loop structure for compatibility with plotting functions, 
+    # but SAMPLE_SIZES is now just [20]
     for target_sample_size in SAMPLE_SIZES:
         
-        accumulated_samples_count = 0
-        current_train_raw_exps = []
-        shuffled_train_exps = train_raw_exps[:] 
-        random.shuffle(shuffled_train_exps)
+        print(f"Training with N={len(train_raw_exps)} experiments ({len(X_train_final)} datapoints)...")
 
-        for experiment in shuffled_train_exps:
-            temp_exps = current_train_raw_exps + [experiment]
-            processor.set_raw_data(temp_exps)
-            processor.preprocess(REQUIRED_HISTORY_STEPS, TARGET_PREDICTION_STEPS, STATIC_DIM)
-            X_train_subset, y_train_subset = processor.get_data_arrays()
-            
-            new_count = len(X_train_subset)
-            if new_count >= target_sample_size:
-                current_train_raw_exps = temp_exps
-                X_train_final = X_train_subset[:target_sample_size]
-                y_train_final = y_train_subset[:target_sample_size]
-                accumulated_samples_count = new_count
-                break
-            elif new_count > accumulated_samples_count:
-                current_train_raw_exps = temp_exps
-                accumulated_samples_count = new_count
-        
-        if len(X_train_final) == 0:
-            print(f"    Skipping sample size {target_sample_size}: No valid training data.")
-            continue
-
-        y_train_final = y_train_final.reshape(-1, 1)
+        y_train_reshaped = y_train_final.reshape(-1, 1)
         y_val_reshaped = y_val_global.reshape(-1, 1)
 
         scaler = StandardScaler()
@@ -428,7 +408,7 @@ def run_experiment(task):
         trainer = ModelTrainer(model, learning_rate=LEARNING_RATE)
         
         save_plot_path = f"{SAVE_DIR}/training_loss_{target_sample_size}.png"
-        trainer.train(X_train_scaled, y_train_final, X_val_scaled, y_val_reshaped, 
+        trainer.train(X_train_scaled, y_train_reshaped, X_val_scaled, y_val_reshaped, 
                       epochs=EPOCHS, batch_size=BATCH_SIZE, plot_path=save_plot_path)
 
         model_path = f'{SAVE_DIR}/performance_mlp_{target_sample_size}samples.pth'
@@ -459,12 +439,17 @@ if __name__ == "__main__":
                         choices=['ood', 'in_dist'],
                         help='Distribution type: determines STATIC_DIM and save path')
 
+    parser.add_argument('--eval_method', type=str, required=True,
+                    choices=['eval_loss', 'performance'],
+                    help='Use eval_loss or performance for prediction')
+
     args = parser.parse_args()
 
     TASKS_LIST = [t.strip() for t in args.task.split(',')]
     REQUIRED_HISTORY_STEPS = [int(s.strip()) for s in args.target_history_steps.split(',')]
     TARGET_PREDICTION_STEPS = [int(s.strip()) for s in args.target_prediction_steps.split(',')]
     DIST_TYPE = args.dist
+    EVAL_METHOD = args.eval_method
 
     print(f"Tasks to run: {TASKS_LIST}")
 
