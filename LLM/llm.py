@@ -69,8 +69,8 @@ def get_tokenizer_and_model(model_id = "LLM/llama_8b_instruct"):
     )
     tokenizer.padding_side = "left"  # Allow batched inference
     model  = AutoModelForCausalLM.from_pretrained(
-    model_id,
-    torch_dtype='auto'
+        model_id,
+        torch_dtype='auto'
     )
 
     return tokenizer, model
@@ -247,37 +247,27 @@ def extract_data_mixture_and_train(model, tokenizer, train_datasets, val_dataset
     train_results = train(model, tokenizer, combined_train_dataset, evaluation_dataset, train_epochs, batch_size, max_step, eval_steps, callback=callback)
     return train_results
 
-def extract_data_mixture_and_train_and_evaluate(input_X, evaluation_task : List, model, random_dir, tokenizer, train_datasets, val_datasets, data_domains, mixing_ratio, additional_info, total_number_datapoints, run_name, seed=42, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100, lora_config=None, fix_training_samples=False):
+def extract_data_mixture_and_train_and_evaluate(input_X, evaluation_task, model, tokenizer, train_datasets, val_datasets, evaluation_dataset, data_domains, mixing_ratio, additional_info, total_number_datapoints, seed=42, method="random", train_epochs=1, batch_size=8, max_step=-1, eval_steps=100):
+    #     '''
+    #     model: llama base model
+    #     tokenizer: llama tokenizer
+    #     train_datasets: List of datasets
+    #     data_domains: List of data domain names, should be same size as train_datasets
+    #     mixing_ratio: List of mixing ratio, should sum to 1, list size same as train_datasets
+    #     additional_information: List of List of IF values for each dataset, for us to do sampling 
+    all_sampled_train_data = [] # training data
+    all_sampled_val_data = [] # same distribution as training data, but validation
     
-    output_dir = "LLM/BO/"+random_dir+"/"+run_name # store this model here every BO runs, to be evaluated
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    
-    config = lora_config
-    model = get_peft_model(model, config)
-
-    # apply tokenization to all data
-    # print("tokenizing all data into correct format...")
-    
-    # sample the correct amount of data from each domain
-    # print("iterating through each data domain and sampling the sufficient datapoints")
-    # print("mixing ratio: ", mixing_ratio)
-    # print("ALL DATA DOMAINS: ", data_domains)
-    all_sampled_train_data = []
-    all_sampled_val_data = []
     for train_dataset, val_dataset, data_domain, ratio, IF_values in zip(train_datasets, val_datasets, data_domains, mixing_ratio, additional_info):
         
-        # print("doing sampling for domain: ", data_domain)
-        # print("ratio: ", ratio)
         total_datapt = int(total_number_datapoints * ratio)
-        # print("number of datapoints needed (ratio * total): ", total_datapt)
         if total_datapt == 0:
             continue # skip if no data needed
-        print("sampling...")
+
         sampled_train_data = sample(train_dataset, total_datapt, additional_info=IF_values, method=method, data_domain=data_domain, seed=seed)
-        print("done sampling training")
+
         sampled_val_data = sample(val_dataset, total_datapt, additional_info=None, method="random", data_domain=None, seed=seed)
-        print("done sampling validation")
+
         
         sampled_train_data = sampled_train_data.shuffle(seed=seed).map(tokenizing_method[data_domain], fn_kwargs={"tokenizer": tokenizer,
                                                                                    "add_eos_token": add_eos_token,
@@ -298,8 +288,14 @@ def extract_data_mixture_and_train_and_evaluate(input_X, evaluation_task : List,
         all_sampled_val_data.append(sampled_val_data)
     
     combined_train_dataset = concatenate_datasets(all_sampled_train_data)
-    combined_val_dataset = concatenate_datasets(all_sampled_val_data)
+    # combined_val_dataset = concatenate_datasets(all_sampled_val_data)
+    # combined_val_dataset = combined_val_dataset.shuffle(seed=42).select(range(100)) # this is validation data for training data
+    
     print("length of training data: ", len(combined_train_dataset))
+    if evaluation_dataset is None:
+        print("evaluation dataset not given. This means we are not using evaluation loss. Will just use training data and evaluation loss")
+        evaluation_dataset = combined_train_dataset.shuffle(seed=42).select(range(int(len(combined_train_dataset)/2)))
+    print("length of validation data: ", len(evaluation_dataset))
         
     evaluation_time_step = [1,50,100,200,300,500,1000]
     class TimeBasedEvalCallback(transformers.TrainerCallback):
@@ -443,7 +439,85 @@ def extract_data_mixture_and_train_and_evaluate(input_X, evaluation_task : List,
             # This depends on your evaluate_tasks function structure
             # Example: return results["results"][self.task]["accuracy"]
             return results["results"][self.task[0]][self.task_metrics[self.task[0]]]  # Modify this based on your actual results structure
+    
+    class StepBasedEvalCallback(transformers.TrainerCallback):
+        """
+        A custom callback to run lm_eval.simple_evaluate at set wall-clock time intervals 
+        (e.g., every 20 seconds).
+        """
+        def __init__(self, tokenizer, eval_step_interval, eval_tasks, input_X):
+            self.tokenizer = tokenizer
+            self.eval_step_interval = eval_step_interval
+            self.eval_tasks = eval_tasks
+            self.results_dir = os.path.join("/home/alfred/Data-Mixing/results_eval_random")
+            self.input_X = input_X
+            self.results = []
+            print(f"Initialized StepBasedEvalCallback with eval steps every {eval_step_interval} steps for tasks: {eval_tasks}")
 
+        def _evaluate_performance(self, model, trainer, current_step):
+            # Get performance from lm_eval
+            model.eval()
+            results = evaluate_tasks(list(self.eval_tasks.keys()), model, self.tokenizer, batch=8, few_shot=3, limit=100)
+            model.train()
+            for task, value in self.eval_tasks.items():
+                _, metric = value
+                performance = results["results"][task][metric]
+            print(f"Evaluation performance at {current_step}: {performance}")
+
+            return performance
+        
+        def on_evaluate(self, args, state, control, metrics=None, **kwargs):
+            """Called when an evaluation is done"""
+            if metrics and 'eval_loss' in metrics:
+                eval_loss = metrics['eval_loss']
+                print(f"Captured Eval Loss: {eval_loss}")
+                self.results[-1]['eval_loss'] = eval_loss
+            else:
+                print("No eval_loss found in metrics.")
+                print("Metrics: ", metrics)
+
+            # Save training loss too
+            training_loss = state.log_history[-2].get("loss", None)
+            print(f"Captured Training Loss: {training_loss}")
+            self.results[-1]['training_loss'] = training_loss
+
+        def on_train_begin(self, args, state, control, **kwargs):
+            """Called at the start of training to record the initial time."""
+            print("Performing evaluation before training...")
+            performance = self._evaluate_performance(kwargs.get('model'), kwargs.get('trainer'), state.global_step)
+            self.results.append({
+                "step": state.global_step,
+                "performance": performance})
+            
+        def on_step_end(self, args, state, control, **kwargs):
+            """Called at the end of every training step."""
+            if state.global_step % self.eval_step_interval == 0:
+                print(f"\nPerforming evaluation at step {state.global_step}...")
+                performance = self._evaluate_performance(kwargs.get('model'), kwargs.get('trainer'), state.global_step)
+                self.results.append({
+                    "step": state.global_step,
+                    "performance": performance})
+
+        def on_train_end(self, args, state, control, **kwargs):
+            """Called when training ends to save the final results."""
+            print(f"\nSaving evaluation history to {self.results_dir}...")
+            os.makedirs(self.results_dir, exist_ok=True)
+            output_file = os.path.join(self.results_dir, f"{list(self.eval_tasks.keys())}_eval_results.json")
+            current_results = {
+                "input_X": self.input_X,
+                "evaluations": self.results
+            }
+            
+            all_results = []
+            if os.path.exists(output_file):
+                print(f"File found: {output_file}. Appending new results.")
+                with open(output_file, 'r') as f:
+                    existing_data = json.load(f)
+                    all_results = existing_data
+            all_results.append(current_results)
+            with open(output_file, 'w') as f:
+                json.dump(all_results, f, indent=4)
+            print(f"Successfully saved {len(all_results)} total evaluation runs to {output_file}")
                 
     class TimerCallback(transformers.TrainerCallback):
         def __init__(self, max_duration_seconds):
@@ -460,14 +534,13 @@ def extract_data_mixture_and_train_and_evaluate(input_X, evaluation_task : List,
                 control.should_training_stop = True
             return control
     callback = []
-    callback.append(TimeBasedEvalCallback(evaluation_time_step, tokenizer, evaluation_task, configuration=input_X))
-    callback.append(TimerCallback(1000))
+    # callback.append(TimeBasedEvalCallback(evaluation_time_step, tokenizer, evaluation_task, configuration=input_X))
+    callback.append(StepBasedEvalCallback(tokenizer, eval_steps, evaluation_task, input_X))
+    # callback.append(TimerCallback(1000)) # don't put TimerCallback for collecting random eval
     
-    train_epochs = 20
-    output_model_dir = train(model, tokenizer, combined_train_dataset, combined_val_dataset, output_dir, run_name, train_epochs, batch_size, max_step, eval_steps, lora_config=config, callback=callback)
-    
+    train_results = train(model, tokenizer, combined_train_dataset, evaluation_dataset, train_epochs, batch_size, max_step, eval_steps, callback=callback)
     print("finished training.")
-    return output_model_dir
+    return train_results
     
 def train(model, tokenizer, train_dataset, val_dataset, train_epochs=1, batch_size=8, max_step=-1, eval_steps=1000, callback=[]):
     model.is_parallelizable = False

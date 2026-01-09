@@ -1,0 +1,2 @@
+# CUDA_VISIBLE_DEVICES=3 python train_predictor.py --task "commonsense_qa,arc_challenge,gsm8k,mmlu,truthfulqa_gen,triviaqa" --target_history_step "50,100,200" --dist ood
+CUDA_VISIBLE_DEVICES=5 python train_predictor_variable.py --task "commonsense_qa,arc_challenge,gsm8k,mmlu,triviaqa,truthfulqa_gen" --target_history_step "25,50" --target_prediction_steps "525,575,625" --dist in_dist

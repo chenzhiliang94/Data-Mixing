@@ -1,6 +1,6 @@
 import random
 import string
-from BO import joint_opt_BO_LLM_generalized
+from BO import joint_opt_BO_LLM_generalized, collect_results_for_random_configs
 import torch
 
 from peft import (
@@ -49,6 +49,16 @@ parser.add_argument("--dkl_freeze_nn", help="dkl freeze nn", type=bool, default=
 
 # deepspeed
 parser.add_argument("--local_rank", type=int, default=0)
+
+# random configs
+parser.add_argument("--eval_random_config", help="if specified, evaluate random configs", action="store_true")
+parser.add_argument("--num_random_configs", help="if generate_random_config is set, number of random configs to generate", type=int, default=100)
+
+# specific configs, only work if run_BO_on is set to "specific"
+parser.add_argument("--eval_specific_config", help="if specified, evaluate a specific config", action="store_true")
+parser.add_argument("--specific_data_config", help="if specific_config is set, use this specific data config", type=str, default=None)
+parser.add_argument("--specific_model_config", help="if specific_config is set, use this specific model config", type=str, default=None)
+
 class TimerCallback(TrainerCallback):
     def __init__(self, max_duration_seconds):
         self.max_duration = int(max_duration_seconds)
@@ -86,6 +96,12 @@ run_BO_on = str(args["run_BO_on"]) # either "model" or "data"
 limit = int(args["limit"]) # either "model" or "data" or "all"
 sample_methods = ["random"] # only random sampling for now
 save_name = str(args["save_name"])
+
+is_random_config = bool(args["eval_random_config"])
+num_random_configs = int(args["num_random_configs"])
+is_specific_config = bool(args["eval_specific_config"])
+specific_data_config = str(args["specific_data_config"]).split(",")
+specific_model_config = str(args["specific_model_config"]).split(",")
 
 acq_function = str(args["acq_function"])
 optimize_method = str(args["optimize_method"])
@@ -145,6 +161,17 @@ BO_params = {
     "to_apply_joBS": to_apply_joBS,
 }
 
+if model == "llama-8b":
+    model_id="meta-llama/Meta-Llama-3-8B-Instruct"
+elif model == "qwen-7b":
+    model_id="Qwen/Qwen2.5-7B-Instruct"
+elif model == "qwen-14b":
+    model_id="Qwen/Qwen3-14B"
+elif model == "qwen-32b":
+    model_id="Qwen/Qwen3-32B"
+else:
+    assert False, "model not recognized"
+
 for sample_method in sample_methods: # random sampling
     results = [] # GP best seen so far
     full_inputs_results = [] # all inputs tried
@@ -161,9 +188,23 @@ for sample_method in sample_methods: # random sampling
                 bias="none",
                 task_type="CAUSAL_LM",)
         
+        if is_random_config:
+            print("collecting results for random configs for task: ", evaluation_task)
+            GP_input, observed_output = collect_results_for_random_configs(lora_rank_max=lora_rank,
+                                                            data_domains=data_domains,
+                                                            num_random_configs=num_random_configs,
+                                                            total_data=total_data,
+                                                            evaluation_task=evaluation_task,
+                                                            eval_method=eval_method,
+                                                            model_id=model_id,
+                                                            sampling_method=sample_method,
+                                                            train_epochs=train_epochs,
+                                                            eval_steps=evaluation_steps,
+                                                            training_batch=training_batch,
+                                                            seed=seed)
         if run_BO_on == "general": # run BO on both data and model
             print("running BO on both data and model")
-            
+
             if model == "llama-8b":
                 model_id="meta-llama/Meta-Llama-3-8B-Instruct"
             elif model == "qwen-7b":
