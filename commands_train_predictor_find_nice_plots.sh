@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0 python train_predictor_find_nice_plots.py --task "gsm8k" --dist in_dist 
