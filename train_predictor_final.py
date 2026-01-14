@@ -353,6 +353,7 @@ def run_experiment(task):
     hist_str = "_".join(map(str, REQUIRED_HISTORY_STEPS))
     tgt_str = "_".join(map(str, TARGET_PREDICTION_STEPS))
     SAVE_DIR = f'{BASE_PATH}/{EVAL_METHOD}_H{hist_str}_T{tgt_str}_curve/{task}'
+    print(SAVE_DIR)
     os.makedirs(SAVE_DIR, exist_ok=True)
 
     set_all_seeds(RANDOM_STATE) 
@@ -365,12 +366,13 @@ def run_experiment(task):
     # --- UPDATED SPLITTING LOGIC ---
     # Strictly slicing: 0-20 for training, 20-30 for validation
     
-    if len(processor.raw_data) < 30:
+    num_train = 50
+    if len(processor.raw_data) < num_train:
         print(f"Warning: Not enough data for strict 20/10 split. Found {len(processor.raw_data)} samples.")
         print("Proceeding with available data, but splits may be smaller than requested.")
     
-    train_raw_exps = processor.raw_data[:20]
-    val_raw_exps = processor.raw_data[20:30]
+    train_raw_exps = processor.raw_data[:num_train]
+    val_raw_exps = processor.raw_data[20:]
 
     # Process Validation Set
     processor.set_raw_data(val_raw_exps)
