@@ -347,6 +347,7 @@ def run_experiment(task):
     HISTORY_DIM = NUM_HISTORY_POINTS * 2 
     TARGET_STEP_DIM = 1 
     INPUT_DIM = STATIC_DIM + HISTORY_DIM + TARGET_STEP_DIM
+    print("input dim:", INPUT_DIM)
     
     FILE_PATH = f"results_eval_random_{DIST_TYPE}/['{task}']_eval_results.json" 
     

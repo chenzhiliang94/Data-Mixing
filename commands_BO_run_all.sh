@@ -1,6 +1,6 @@
 #!/bin/bash
 export TQDM_DISABLE=1
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=3
 
 # ----------------------- #
 # Shared configuration
@@ -16,12 +16,12 @@ LIMIT=100 # how many datapoints to evaluation in llm-harness. 0 means all points
 RUN_ON=general # optimize both components
 TRAIN_BATCH=16
 EVAL_BATCH=16
-EVAL_METHOD=performance # IMPORTANT. eval_loss or performance (either take loss or performance)
+EVAL_METHOD=eval_loss # IMPORTANT. eval_loss or performance (either take loss or performance)
 MODEL=llama-8b # IMPORTANT
 UCB_BETA=20
 OPT_METHOD=mixed # IMPORTANT related to BO for mixed problems. random, mixed. For any BO related stuff, always used mixed.
 USE_JOBS=1 # whether to use & to run jobs in parallel. 0 or 1. If 1, make sure is mixed. Probably want to add a new arg for number of training points.
-INFO_PRINTOUT=evaluate_on_${EVAL_METHOD}_in_dist_${USE_JOBS} # additional info to identify the experiment. Only affects the output file name.
+INFO_PRINTOUT=evaluate_on_${EVAL_METHOD}_in_dist_JOBS_${USE_JOBS} # additional info to identify the experiment. Only affects the output file name.
 ACQ_FUNC=ucb # EI or ucb
 
             
@@ -41,7 +41,7 @@ ACQ_FUNC=ucb # EI or ucb
 #group1=("arc_challenge")
 # group1=("winogrande")
 #group1=("truthfulqa_gen")
-group1=("triviaqa" "mmlu" "commonsense_qa" "truthfulqa_gen" "gsm8k" "mmlu")
+group1=("arc_challenge" "triviaqa" "mmlu" "commonsense_qa" "truthfulqa_gen" "gsm8k" "mmlu")
 #group1=("commonsense_qa" "triviaqa" "gsm8k" "mmlu")
 #group1=("mmlu" "triviaqa")
 
