@@ -29,7 +29,7 @@ parser.add_argument("--experiments_setting", help="either ood or in_dist")
 parser.add_argument("--time_limit", help="time_limit")
 parser.add_argument("--lora_rank", help="max lora_rank")
 parser.add_argument("--model", help="model name or path")
-parser.add_argument("--JoBS", help="whether to apply scaling law", type=bool, default=False)
+parser.add_argument("--JoBS", help="whether to apply scaling law", type=int, default=False)
 
 # BO stuff, 
 parser.add_argument("--acq_function", help="acquisition function")
@@ -77,7 +77,7 @@ class TimerCallback(TrainerCallback):
 args = vars(parser.parse_args())
 print("command-line args: ", args)
 
-to_apply_joBS = args["JoBS"]
+to_apply_joBS = bool(args["JoBS"])
 eval_method = str(args["eval_method"])
 model=str(args["model"])
 setting=(args["experiments_setting"])

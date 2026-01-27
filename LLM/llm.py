@@ -580,12 +580,17 @@ def train(model, tokenizer, train_dataset, val_dataset, train_epochs=1, batch_si
     )
 
     trainer.train()
-
+    
     train_results = {"eval_loss": [
     log["eval_loss"]
     for log in trainer.state.log_history
     if "eval_loss" in log
     ]}
+
+    if len(callback) > 1:
+        print("callback information in train function:")
+        print(callback[1].step_performances) 
+        train_results["step_performances"] = callback[1].step_performances
     
     return train_results
     

@@ -25,7 +25,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BASE_PATH = "trained_predictor_find_nice_plots"
 
 # Hardcoded requirements based on prompt
-REQUIRED_HISTORY_STEPS = [25, 50]
+REQUIRED_HISTORY_STEPS = [25, 50, 75, 100]
 TARGET_PREDICTION_STEPS = [625]
 
 # --- Classes & Functions ---
@@ -256,10 +256,9 @@ def plot_combined_top_samples(best_samples, save_dir, task_name):
     plt.yticks(fontsize=16)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    
-    save_path = os.path.join(visuals_dir, f"combined_chosen3_runs_eval_loss_only.png")
+    save_path = os.path.join(visuals_dir, f"combined_chosen3_runs_eval_loss_only" + str(random.randint(0, 10000)) + ".png")
+    print(save_path)
     plt.savefig(save_path)
-    plt.close()
 
 def run_experiment(task, dist_type):
     print(f"\n==================================================")
@@ -367,24 +366,49 @@ def run_experiment(task, dist_type):
                 'act_loss': data['loss']['act'],
                 'traj_loss': data['loss']['traj']
             })
+    for s in valid_samples:
+        s['start_val'] = s['traj_loss'][0][1]
+        s['end_val'] = s['traj_loss'][-1][1]
+        
+    crossover_pairs = []
 
-    valid_samples.sort(key=lambda x: x['total_err'])
-    # 1. Highest eval loss at step 25
-    highest_start_sample = max(valid_samples, key=lambda x: x['traj_loss'][0][1])
-    
-    # 2. Lowest eval loss at step 25
-    lowest_start_sample = min(valid_samples, key=lambda x: x['traj_loss'][0][1])
-    
-    # 3. "Any other" sample (e.g., the one with the median starting value or just the first in the list that isn't the other two)
-    remaining_samples = [s for s in valid_samples if s['idx'] not in [highest_start_sample['idx'], lowest_start_sample['idx']]]
-    other_sample = remaining_samples[len(remaining_samples) // 2] # Picks the middle one
+    for i in range(len(valid_samples)):
+        for j in range(len(valid_samples)):
+            if i == j:
+                continue
 
-    chosen_3 = [highest_start_sample, lowest_start_sample, other_sample]
+            si = valid_samples[i]
+            sj = valid_samples[j]
 
-    print(f"Chosen errors: {['{:.4f}'.format(s['total_err']) for s in chosen_3]}")
+            # Start: A > B
+            if si['start_val'] > sj['start_val']:
+                # End: B > A
+                if sj['end_val'] > si['end_val']:
+                    crossover_pairs.append((si, sj))
+    print(len(crossover_pairs), " crossover pairs found.")
+    for pair in crossover_pairs:
+        A, B = pair
+        # add a random sample at the end
+        chosen_3 = [A, B, valid_samples[random.randint(0, len(valid_samples) - 1)]]
+        print(A)
+        print(B)
+        # valid_samples.sort(key=lambda x: x['total_err'])
+        # # 1. Highest eval loss at step 25
+        # highest_start_sample = max(valid_samples, key=lambda x: x['traj_loss'][0][1])
+        
+        # # 2. Lowest eval loss at step 25
+        # lowest_start_sample = min(valid_samples, key=lambda x: x['traj_loss'][0][1])
+        
+        # # 3. "Any other" sample (e.g., the one with the median starting value or just the first in the list that isn't the other two)
+        # remaining_samples = [s for s in valid_samples if s['idx'] not in [highest_start_sample['idx'], lowest_start_sample['idx']]]
+#       other_sample = remaining_samples[len(remaining_samples) // 2] # Picks the middle one
 
-    # 5. Combined Plotting
-    plot_combined_top_samples(chosen_3, SAVE_DIR, task)
+        # chosen_3 = [highest_start_sample, lowest_start_sample, other_sample]
+
+        print(f"Chosen errors: {['{:.4f}'.format(s['total_err']) for s in chosen_3]}")
+
+        # 5. Combined Plotting
+        plot_combined_top_samples(chosen_3, SAVE_DIR, task)
     print(f"Completed: {task}")
 
 if __name__ == "__main__":

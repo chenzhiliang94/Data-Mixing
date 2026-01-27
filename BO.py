@@ -38,7 +38,7 @@ from peft import (
 lora_alpha = 16
 lora_dropout= 0.05
 lora_r=16
-scaling_weight=1.05
+scaling_weight=1.08
 kernel_w=1.05
 lora_target_modules = [
     "q_proj",
@@ -819,10 +819,12 @@ def joint_opt_BO_LLM_generalized(
         #    Our code handles this naturally anyways.
         
         task = list(evaluation_task.keys())[0]
-        predictor_path = BO_params.get("predictor_path", f"trained_predictor_fixed_20train_10val/{eval_method}_H25_50_T625_curve/{task}/performance_mlp_20samples.pth")
-        input_dim = len(input_X) + 5    # +5 for training steps 25, 50 eval_loss/performance + training step 625
+        predictor_path = BO_params.get("predictor_path", f"trained_predictor_fixed_20train_10val/{eval_method}_H25_50_75_100_T625_curve/{task}/performance_mlp_20samples.pth")
+        input_dim = len(input_X) + 9    # +10 for training steps 25, 50, 75, 100 eval_loss/performance + training step 625
         predictor_model = MetricPredictorMLP(input_dim=input_dim)
         try:
+            print("input_dim for JoBS predictor: ", input_dim)
+            print("JoBS: Loading predictor from ", predictor_path)
             # Map to CPU first to avoid device conflicts
             predictor_model.load_state_dict(torch.load(predictor_path, map_location='cpu'))
             predictor_model.eval()
@@ -837,8 +839,8 @@ def joint_opt_BO_LLM_generalized(
         with open(f"results_eval_random_in_dist/['{task}']_eval_results.json", "r") as f:
             raw_data = json.load(f)
         # Process raw_data to extract GP_input and observed_output
-        # Taking only the first 20 observations
-        for raw_sample in raw_data[:20]:
+        # Taking only the first 30 observations
+        for raw_sample in raw_data[:75]:
             # Extract eval_loss/performance at step 625
             if eval_method == "performance":
                 final_recorded_value = raw_sample['evaluations'][-1][eval_method]
@@ -975,6 +977,7 @@ def joint_opt_BO_LLM_generalized(
         print("input_X_between_0_1 after fitting GP with prior data:", input_X_between_0_1)
         print("fidelity:", fidelity)
     
+    full_evaluation_count = -1
     while itr < BO_run:
         print("\n\n\n")
         print("======== BO iteration: ", itr, " ==========")
@@ -1055,13 +1058,20 @@ def joint_opt_BO_LLM_generalized(
                 pbar.update(1)
                 count_high_fidelity += 1
         else:
-            itr +=1
-            pbar.update(1)
+            # if BO_params["to_apply_joBS"]: is true, increment by 0.1 only 
+            if BO_params["to_apply_joBS"]:
+                itr += 0.1
+                pbar.update(0.1)
+            else:
+                itr +=1
+                pbar.update(1)
             count_high_fidelity += 1
+        
         
         # before we run training, probably need to insert the callback for JoBS if needed
         # also, we need to edit the code in extract_data_mixture_and_train function to make train_results store the small training step performance/loss
         if BO_params["to_apply_joBS"] and eval_method == "performance":
+            full_evaluation_count += 1
             class PerformanceEvalCallback(TrainerCallback):
                 """
                 A custom callback to run lm_eval.simple_evaluate specifically at steps 25 and 50.
@@ -1070,7 +1080,7 @@ def joint_opt_BO_LLM_generalized(
                 def __init__(self, tokenizer, eval_tasks):
                     self.tokenizer = tokenizer
                     # Fixed evaluation steps as requested
-                    self.target_eval_steps = {25, 50} 
+                    self.target_eval_steps = {25, 50, 75, 100} 
                     self.eval_tasks = eval_tasks
                     # To store results temporarily before logging
                     self.step_performances = {} 
@@ -1105,26 +1115,8 @@ def joint_opt_BO_LLM_generalized(
                         key_name = f"performance_step_{state.global_step}"
                         self.step_performances[key_name] = performance
 
-                def on_log(self, args, state, control, logs=None, **kwargs):
-                    """
-                    Called whenever the trainer logs information.
-                    We force-inject our metrics directly into the trainer's state history.
-                    """
-                    if self.step_performances:
-                        # 1. Update the current temporary logs (for WandB/Tensorboard visibility)
-                        if logs is not None:
-                            logs.update(self.step_performances)
-                        
-                        # 2. DIRECTLY update the persistent log history in the state
-                        # This ensures retrieval via trainer.state.log_history works later
-                        if state.log_history:
-                            state.log_history[-1].update(self.step_performances)
-                        
-                        # Clear them so we don't log the same value repeatedly
-                        self.step_performances = {}
-
             performance_eval_callback = PerformanceEvalCallback(tokenizer, evaluation_task)
-            
+        
         # Train & evaluate 
         train_results = extract_data_mixture_and_train(
             model=model,
@@ -1162,7 +1154,7 @@ def joint_opt_BO_LLM_generalized(
             for task, (weight, metric) in evaluation_task.items():
                 p = results["results"][task][metric]
                 if task=="wikitext": p=-p
-                perf += p*weight*scaling_weight
+                perf += p*weight
             observed_performance = perf
             best_possible_performance = perf
         elif eval_method == "eval_loss": # if we want to minimize loss
@@ -1173,12 +1165,12 @@ def joint_opt_BO_LLM_generalized(
                 observed_performance = - min(vals[:half])
                 best_possible_performance = - min(train_results["eval_loss"])
             else:
-                # observed_performance = - min(train_results["eval_loss"])
-                # best_possible_performance = - min(train_results["eval_loss"])
+                observed_performance = - min(train_results["eval_loss"])
+                best_possible_performance = - min(train_results["eval_loss"])
                 
                 # I believe it should be the last eval loss, since we are trying to predict the last one.
-                observed_performance = -train_results["eval_loss"][-1]
-                best_possible_performance = -train_results["eval_loss"][-1]
+                # observed_performance = -train_results["eval_loss"][-1]
+                # best_possible_performance = -train_results["eval_loss"][-1]
         else:
             assert False, "eval_method not properly set."
             
@@ -1190,20 +1182,35 @@ def joint_opt_BO_LLM_generalized(
             # 2. then use performance predictor to predict the final performance and assign it to observed_performance
             # observed_performance = ...
             # observed performance is what will be assigned to the GP later on.
-
+            
             print(f"Applying JoBS: Extracted {eval_method} logs for performance prediction.")
-            print(f"Length of {eval_method} logs: ", len(train_results[eval_method]))
-            print(f"{eval_method} logs: ", train_results[eval_method])
+            print("Full train results log history: ", train_results)
+            
             # Extract first two (training steps 25 and 50) to use for predictor
-            recorded_values = train_results.get(eval_method, [])
+            if eval_method == "eval_loss":
+                recorded_values = train_results.get(eval_method, []) # loss
+                best_possible_performance *= (1/scaling_weight)
+            else: # it's performance
+                # {'performance_step_25': 0.62, 'performance_step_50': 0.59}
+                # take max of best_possible_performance and the values in this dict
+                best_possible_performance *= scaling_weight
+                best_possible_performance = max(best_possible_performance, max(train_results["step_performances"].values()))
+                # best possible performance
+                recorded_values = list(train_results["step_performances"].values())
+                print("recorded performance values for JoBS predictor: ", recorded_values)
+                
             if len(recorded_values) >= 2:
                 value_25 = recorded_values[0]
                 value_50 = recorded_values[1]
-                loss_input = [25, value_25, 50, value_50, 625]
+                value_75 = recorded_values[2]
+                value_100 = recorded_values[3]
+                
+                loss_input = [25, value_25, 50, value_50, 75, value_75, 100, value_100, 625]
                 input = input_X + loss_input
                 input_tensor = torch.tensor([input], dtype=torch.float32)
                 with torch.no_grad():
                     predicted_final_value = predictor_model(input_tensor).item()
+                    print("predicted final value from JoBS predictor: ", predicted_final_value)
                     if eval_method == "performance":
                         observed_performance = predicted_final_value
                     elif eval_method == "eval_loss":
@@ -1212,7 +1219,7 @@ def joint_opt_BO_LLM_generalized(
         # max performance
         max_performance_so_far = max(max_performance_so_far, best_possible_performance)
         full_train_results_list.append(best_possible_performance)
-        results_list.append(observed_performance)
+        results_list.append(best_possible_performance)
         print(f"current iteration observed (possibly low-fid or predicted) {eval_method}: ", observed_performance)
         print(f"current iteration best possible {eval_method} (full train run): ", best_possible_performance)
         print(f"max {eval_method} so far: ", max_performance_so_far)
